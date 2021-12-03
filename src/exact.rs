@@ -15,7 +15,7 @@ pub fn branch_and_bound(
     }
 
     let vertices = graph.get_active_vertices();
-    let mut best_size = graph.total_vertices();
+    let mut best_size = upper_bound;
     let mut result = Vec::new();
 
     for vertex in vertices {
@@ -23,7 +23,7 @@ pub fn branch_and_bound(
         graph.disable_vertex(vertex as u32);
         *current_solution += 1;
 
-        if let Some(solution) = branch_and_bound(graph, current_solution, upper_bound) {
+        if let Some(solution) = branch_and_bound(graph, current_solution, best_size) {
             if solution.len() + 1 < best_size {
                 best_size = solution.len();
                 result = solution;
