@@ -45,3 +45,9 @@ pub fn read() -> Result<Graph> {
     }
     Ok(graph)
 }
+
+pub fn write(solution: Vec<u32>) {
+    for vertex in solution {
+        println!("{}", vertex + 1);
+    }
+}

@@ -1,7 +1,14 @@
+use std::iter::Filter;
+
 
 pub struct Graph {
     /// The list of vertices which are not deleted.
-    active_vertices: Vec<u32>,
+    active_vertices: Vec<bool>,
+
+    ///
+    num_active_vertices: usize,
+
+    coloring: Vec<Color>,
 
     /// The adjancency list representation of the graph.
     adj: Vec<Vec<u32>>,
@@ -20,11 +27,15 @@ enum Color {
 impl Graph {
 
     pub fn new(vertices: usize) -> Graph {
-        let active_vertices = (0..vertices as u32).collect();
+        let active_vertices = vec![true; vertices];
+        let num_active_vertices = vertices;
+        let coloring = vec![Color::Unvisited; vertices];
         let adj = vec![Vec::new(); vertices];
         let rev_adj = vec![Vec::new(); vertices];
         Graph {
             active_vertices,
+            num_active_vertices,
+            coloring,
             adj,
             rev_adj,
         }
@@ -47,9 +58,35 @@ impl Graph {
     }
 
     /// Returns the number (remaining) of vertices in the graph
-    pub fn vertices(&self) -> usize {
+    pub fn total_vertices(&self) -> usize {
         // TODO compute the actual number of remaining vertices in the graph
         self.adj.len()
+    }
+
+    pub fn num_active_vertices(&self) -> usize {
+        self.num_active_vertices
+    }
+
+    pub fn disable_vertex(&mut self, vertex: u32) {
+        self.active_vertices[vertex as usize] = false;
+        self.coloring[vertex as usize] = Color::Exhausted;
+        self.num_active_vertices -= 1;
+    }
+
+    pub fn enable_vertex(&mut self, vertex: u32) {
+        self.active_vertices[vertex as usize] = false;
+        self.coloring[vertex as usize] = Color::Unvisited;
+        self.num_active_vertices += 1;
+    }
+
+    pub fn get_active_vertices(&self) -> Vec<usize> {
+        let mut result = Vec::new();
+        for i in 0..self.total_vertices() {
+            if self.active_vertices[i] {
+                result.push(i);
+            }
+        }
+        result
     }
 
     /// Helper algorithm to find cycles in the directed graph.
@@ -73,21 +110,45 @@ impl Graph {
         return false;
     }
 
+    /// Test whether the graph has a cycle. Simple DFS implementation based on
+    /// computing a topological ordering. The graph may consist of several
+    /// connected components.
+    pub fn has_cycle(&self) -> bool {
+        let mut local_coloring = self.coloring.clone();
+        for i in 0..self.total_vertices() {
+            if !self.active_vertices[i] {
+                continue;
+            }
+            match local_coloring[i] {
+                Color::Unvisited => {
+                   if self.visit(i, &mut local_coloring) {
+                       return true;
+                   }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
     /// Given a set `fvs` of vertices to delete, returns `true` if the 
     /// remainder has a cycle somewhere. Simple DFS implementation based on
     /// computing a topological ordering. The graph may consist of several
     /// connected components.
-    pub fn has_cycle(&self, fvs: &Vec<u32>) -> bool {
+    pub fn has_cycle_with_fvs(&self, fvs: &Vec<u32>) -> bool {
         // keep track of which vertices have been exhaustively visited
-        let mut coloring: Vec<_> = vec![Color::Unvisited; self.vertices()];
+        let mut coloring: Vec<_> = vec![Color::Unvisited; self.total_vertices()];
         for vertex in fvs {
             coloring[*vertex as usize] = Color::Exhausted;
         }
 
-        for vertex in &self.active_vertices {
-            match coloring[*vertex as usize] {
+        for i in 0..self.total_vertices() {
+            if !self.active_vertices[i] {
+                continue;
+            }
+            match coloring[i] {
                 Color::Unvisited => {
-                   if self.visit(*vertex as usize, &mut coloring) {
+                   if self.visit(i, &mut coloring) {
                        return true;
                    }
                 }
@@ -129,14 +190,14 @@ mod tests {
     fn has_cycle_test_001() {
         let graph = pace_example_graph();
         let fvs = vec![];
-        assert_eq!(graph.has_cycle(&fvs), true);
+        assert_eq!(graph.has_cycle_with_fvs(&fvs), true);
     }
 
     #[test]
     fn has_cycle_test_002() {
         let graph = pace_example_graph();
         let fvs = vec![1];
-        assert_eq!(graph.has_cycle(&fvs), true);
+        assert_eq!(graph.has_cycle_with_fvs(&fvs), true);
     }
 
     
@@ -144,7 +205,7 @@ mod tests {
     fn has_cycle_test_003() {
         let graph = pace_example_graph();
         let fvs = vec![1];
-        assert_eq!(graph.has_cycle(&fvs), true);
+        assert_eq!(graph.has_cycle_with_fvs(&fvs), true);
     }
 
 
@@ -152,20 +213,20 @@ mod tests {
     fn has_cycle_test_004() {
         let graph = pace_example_graph();
         let fvs = vec![0];
-        assert_eq!(graph.has_cycle(&fvs), false);
+        assert_eq!(graph.has_cycle_with_fvs(&fvs), false);
     }
 
     #[test]
     fn has_cycle_test_005() {
         let graph = pace_example_graph();
         let fvs = vec![2];
-        assert_eq!(graph.has_cycle(&fvs), false);
+        assert_eq!(graph.has_cycle_with_fvs(&fvs), false);
     }
 
     #[test]
     fn has_cycle_test_006() {
         let graph = pace_example_graph();
         let fvs = vec![3];
-        assert_eq!(graph.has_cycle(&fvs), false);
+        assert_eq!(graph.has_cycle_with_fvs(&fvs), false);
     }
 }
