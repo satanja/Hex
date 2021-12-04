@@ -1,5 +1,6 @@
 mod exact;
 mod graph;
+mod heur;
 mod io;
 
 use graph::Graph;
