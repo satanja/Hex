@@ -21,7 +21,7 @@ pub fn read() -> Result<Graph> {
     line.clear();
 
     let vertices = specs[0];
-    let _edges = specs[1];
+    let edges = specs[1];
 
     let mut graph = Graph::new(vertices);
 

@@ -1,6 +1,6 @@
 use std::iter::Filter;
 
-
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Graph {
     /// The list of vertices which are not deleted.
     active_vertices: Vec<bool>,
@@ -10,14 +10,14 @@ pub struct Graph {
 
     coloring: Vec<Color>,
 
-    /// The adjancency list representation of the graph.
+    /// The adjacency list representation of the graph.
     adj: Vec<Vec<u32>>,
 
     /// The adjacency list representation of the reversed graph.
     rev_adj: Vec<Vec<u32>>,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Color {
     Unvisited,
     Visited,
@@ -25,7 +25,6 @@ enum Color {
 }
 
 impl Graph {
-
     pub fn new(vertices: usize) -> Graph {
         let active_vertices = vec![true; vertices];
         let num_active_vertices = vertices;
@@ -74,16 +73,26 @@ impl Graph {
     }
 
     pub fn enable_vertex(&mut self, vertex: u32) {
-        self.active_vertices[vertex as usize] = false;
+        self.active_vertices[vertex as usize] = true;
         self.coloring[vertex as usize] = Color::Unvisited;
         self.num_active_vertices += 1;
     }
 
-    pub fn get_active_vertices(&self) -> Vec<usize> {
+    pub fn get_active_vertices(&self) -> Vec<u32> {
         let mut result = Vec::new();
         for i in 0..self.total_vertices() {
             if self.active_vertices[i] {
-                result.push(i);
+                result.push(i as u32);
+            }
+        }
+        result
+    }
+
+    pub fn get_disabled_vertices(&self) -> Vec<u32> {
+        let mut result = Vec::new();
+        for i in 0..self.total_vertices() {
+            if !self.active_vertices[i] {
+                result.push(i as u32)
             }
         }
         result
@@ -113,7 +122,7 @@ impl Graph {
     /// Test whether the graph has a cycle. Simple DFS implementation based on
     /// computing a topological ordering. The graph may consist of several
     /// connected components.
-    pub fn has_cycle(&self) -> bool {
+    pub fn is_cyclic(&self) -> bool {
         let mut local_coloring = self.coloring.clone();
         for i in 0..self.total_vertices() {
             if !self.active_vertices[i] {
@@ -121,9 +130,9 @@ impl Graph {
             }
             match local_coloring[i] {
                 Color::Unvisited => {
-                   if self.visit(i, &mut local_coloring) {
-                       return true;
-                   }
+                    if self.visit(i, &mut local_coloring) {
+                        return true;
+                    }
                 }
                 _ => {}
             }
@@ -131,7 +140,7 @@ impl Graph {
         false
     }
 
-    /// Given a set `fvs` of vertices to delete, returns `true` if the 
+    /// Given a set `fvs` of vertices to delete, returns `true` if the
     /// remainder has a cycle somewhere. Simple DFS implementation based on
     /// computing a topological ordering. The graph may consist of several
     /// connected components.
@@ -148,15 +157,49 @@ impl Graph {
             }
             match coloring[i] {
                 Color::Unvisited => {
-                   if self.visit(i, &mut coloring) {
-                       return true;
-                   }
+                    if self.visit(i, &mut coloring) {
+                        return true;
+                    }
                 }
                 _ => {}
             }
         }
         false
     }
+
+    // Can be optimized using a heap. Each time a vertex is disabled, we can
+    // update the number of in and outgoing edges.
+    pub fn max_degree_vertex(&self) -> u32 {
+        let mut max_deg = 0;
+        let mut max_vertex = 0;
+        for vertex in 0..self.total_vertices() {
+            if self.active_vertices[vertex] {
+                let deg_out = self.adj[vertex]
+                    .iter()
+                    .filter(|u| self.active_vertices[**u as usize])
+                    .fold(0, |acc, _| acc + 1) as u32;
+
+                let deg_in = self.rev_adj[vertex]
+                    .iter()
+                    .filter(|u| self.active_vertices[**u as usize])
+                    .fold(0, |acc, _| acc + 1) as u32;
+
+                if deg_in + deg_out > max_deg {
+                    max_deg = deg_in + deg_out;
+                    max_vertex = vertex;
+                }
+            }
+        }
+        max_vertex as u32
+    }
+
+    // fn sink_source_reduction(&mut self) -> bool {
+    //     // definitely use a heap to keep track of vertices that are either
+    //     // or sinks
+    //     for vertex in self.total_vertices() {
+    //         if !self.active_vertices[vertex] {}
+    //     }
+    // }
 
     // fn contract(&mut self, vertex: u32) {
     //     let target = self.adj[vertex as usize][0];
@@ -166,10 +209,23 @@ impl Graph {
 
     //             }
     //         } else {
-                
+
     //         }
     //     }
     // }
+}
+
+trait Reducable {
+    fn reduce(&mut self);
+}
+
+impl Reducable for Graph {
+    fn reduce(&mut self) {
+        let mut reduced = true;
+        while reduced {
+            // reduced |= self.sink_source_reduction();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -200,14 +256,12 @@ mod tests {
         assert_eq!(graph.has_cycle_with_fvs(&fvs), true);
     }
 
-    
     #[test]
     fn has_cycle_test_003() {
         let graph = pace_example_graph();
         let fvs = vec![1];
         assert_eq!(graph.has_cycle_with_fvs(&fvs), true);
     }
-
 
     #[test]
     fn has_cycle_test_004() {
