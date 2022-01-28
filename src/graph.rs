@@ -1,4 +1,6 @@
-use std::iter::Filter;
+use std::{iter::Filter, usize};
+
+use crate::util::{Heap, KeyValue, MaxItem};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Graph {
@@ -15,6 +17,15 @@ pub struct Graph {
 
     /// The adjacency list representation of the reversed graph.
     rev_adj: Vec<Vec<u32>>,
+
+    /// Out-degree heap
+    max_degree_heap: Heap<MaxItem>,
+
+    /// Current out-degree of each vertex
+    current_out_degree: Vec<usize>,
+
+    /// Current in-degree of each vertex
+    current_in_degree: Vec<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,6 +48,9 @@ impl Graph {
             coloring,
             adj,
             rev_adj,
+            max_degree_heap: Heap::new(0),
+            current_out_degree: vec![0; vertices],
+            current_in_degree: vec![0; vertices],
         }
     }
 
@@ -49,10 +63,25 @@ impl Graph {
         }
     }
 
+    pub fn initialize_heaps(&mut self) {
+        let mut data = Vec::with_capacity(self.total_vertices());
+
+        for vertex in 0..self.total_vertices() {
+            self.current_in_degree[vertex] = self.rev_adj[vertex].len();
+            let item = MaxItem::new(
+                vertex,
+                (self.adj[vertex].len() + self.rev_adj[vertex].len()) as i64,
+            );
+            data.push(item);
+        }
+        self.max_degree_heap.load(data);
+    }
+
     pub fn set_adjacency(&mut self, source: u32, targets: Vec<u32>) {
         for vertex in &targets {
             self.rev_adj[*vertex as usize].push(source);
         }
+        self.current_out_degree[source as usize] = targets.len();
         self.adj[source as usize] = targets;
     }
 
@@ -70,9 +99,63 @@ impl Graph {
         self.active_vertices[vertex as usize] = false;
         self.coloring[vertex as usize] = Color::Exhausted;
         self.num_active_vertices -= 1;
+
+        for incoming in &self.rev_adj[vertex as usize] {
+            if self.active_vertices[*incoming as usize] {
+                self.current_out_degree[*incoming as usize] -= 1;
+                // let deg = self.current_out_degree[*incoming as usize];
+                // self.max_degree_heap
+                //     .decrease_key(MaxItem::new(*incoming as usize, deg as i64));
+            }
+        }
+
+        for outgoing in &self.adj[vertex as usize] {
+            if self.active_vertices[*outgoing as usize] {
+                self.current_in_degree[*outgoing as usize] -= 1;
+            }
+        }
+
+        for incoming in &self.rev_adj[vertex as usize] {
+            if self.active_vertices[*incoming as usize] {
+                let deg = self.current_out_degree[*incoming as usize]
+                    + self.current_in_degree[*incoming as usize];
+                self.max_degree_heap
+                    .decrease_key(MaxItem::new(*incoming as usize, deg as i64));
+            }
+        }
+
+        for outgoing in &self.adj[vertex as usize] {
+            if self.active_vertices[*outgoing as usize] {
+                let deg = self.current_out_degree[*outgoing as usize]
+                    + self.current_in_degree[*outgoing as usize];
+                self.max_degree_heap
+                    .decrease_key(MaxItem::new(*outgoing as usize, deg as i64));
+            }
+        }
     }
 
     pub fn enable_vertex(&mut self, vertex: u32) {
+        self.active_vertices[vertex as usize] = true;
+        self.coloring[vertex as usize] = Color::Unvisited;
+        self.num_active_vertices += 1;
+
+        for incoming in &self.rev_adj[vertex as usize] {
+            if self.active_vertices[*incoming as usize] {
+                self.current_out_degree[*incoming as usize] += 1;
+                let deg = self.current_out_degree[*incoming as usize];
+                self.max_degree_heap
+                    .decrease_key(MaxItem::new(*incoming as usize, deg as i64));
+            }
+        }
+    }
+
+    pub fn disable_vertex_post(&mut self, vertex: u32) {
+        self.active_vertices[vertex as usize] = false;
+        self.coloring[vertex as usize] = Color::Exhausted;
+        self.num_active_vertices -= 1;
+    }
+
+    pub fn enable_vertex_post(&mut self, vertex: u32) {
         self.active_vertices[vertex as usize] = true;
         self.coloring[vertex as usize] = Color::Unvisited;
         self.num_active_vertices += 1;
@@ -169,28 +252,9 @@ impl Graph {
 
     // Can be optimized using a heap. Each time a vertex is disabled, we can
     // update the number of in and outgoing edges.
-    pub fn max_degree_vertex(&self) -> u32 {
-        let mut max_deg = 0;
-        let mut max_vertex = 0;
-        for vertex in 0..self.total_vertices() {
-            if self.active_vertices[vertex] {
-                let deg_out = self.adj[vertex]
-                    .iter()
-                    .filter(|u| self.active_vertices[**u as usize])
-                    .fold(0, |acc, _| acc + 1) as u32;
-
-                let deg_in = self.rev_adj[vertex]
-                    .iter()
-                    .filter(|u| self.active_vertices[**u as usize])
-                    .fold(0, |acc, _| acc + 1) as u32;
-
-                if deg_in + deg_out > max_deg {
-                    max_deg = deg_in + deg_out;
-                    max_vertex = vertex;
-                }
-            }
-        }
-        max_vertex as u32
+    pub fn max_degree_vertex(&mut self) -> u32 {
+        let max = self.max_degree_heap.extract_min().unwrap();
+        max.key() as u32
     }
 
     // fn sink_source_reduction(&mut self) -> bool {

@@ -15,9 +15,9 @@ pub fn simple_post_processing(graph: &mut Graph) -> Vec<u32> {
     loop {
         let mut to_delete = Vec::new();
         for vertex in &disabled_set {
-            graph.enable_vertex(*vertex as u32);
+            graph.enable_vertex_post(*vertex as u32);
             if graph.is_cyclic() {
-                graph.disable_vertex(*vertex as u32);
+                graph.disable_vertex_post(*vertex as u32);
             } else {
                 to_delete.push(*vertex);
             }
