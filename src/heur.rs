@@ -1,4 +1,7 @@
-use crate::graph::Graph;
+use crate::{
+    graph::{Graph, Reducable},
+    util::RangeSet,
+};
 use std::collections::HashSet;
 
 pub fn greedy(graph: &Graph) -> Vec<u32> {
@@ -34,6 +37,25 @@ pub fn simple_post_processing(graph: &mut Graph) -> Vec<u32> {
     graph.get_active_vertices()
 }
 
-pub fn greedy_and_reduce(graph: &mut Graph) -> Vec<u32> {
-    greedy(graph)
+pub fn greedy_and_reduce(graph: &Graph) -> Vec<u32> {
+    let mut copy = graph.clone();
+    copy.reduce();
+    let mut removed = RangeSet::new(copy.total_vertices());
+    while copy.is_cyclic() {
+        let v = copy.max_degree_vertex();
+        copy.disable_vertex(v);
+        removed.insert(v);
+        copy.reduce();
+    }
+
+    let vec_removed: Vec<_> = removed.iter().map(|v| *v).collect();
+    assert!(!graph.has_cycle_with_fvs(&vec_removed));
+
+    for vertex in 0..copy.total_vertices() {
+        if !removed.contains(&(vertex as u32)) {
+            copy.enable_vertex_post(vertex as u32);
+        }
+    }
+
+    simple_post_processing(&mut copy)
 }

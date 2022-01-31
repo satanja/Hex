@@ -181,7 +181,6 @@ impl<T: Ord + KeyValue> Heap<T> {
         let min = self.heap.pop();
         self.min_heapify(0);
 
-        debug_assert_eq!(j, self.heap[self.table[j]].key());
         min
     }
 

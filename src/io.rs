@@ -1,6 +1,10 @@
 use crate::graph::Graph;
 use io::Result;
-use std::{io::{self, BufReader, BufRead}, path::{Path, PathBuf}, fs::File};
+use std::{
+    fs::File,
+    io::{self, BufRead, BufReader},
+    path::{Path, PathBuf},
+};
 
 pub fn read() -> Result<Graph> {
     let mut line = String::new();
@@ -50,7 +54,6 @@ pub fn read_from_path(path: PathBuf) -> Result<Graph> {
     let mut line = String::new();
     let file = File::open(path).unwrap();
     let mut reader = BufReader::new(file);
-    
 
     reader.read_line(&mut line)?;
     while line.starts_with("%") {
@@ -90,7 +93,7 @@ pub fn read_from_path(path: PathBuf) -> Result<Graph> {
         index += 1;
     }
 
-    graph.initialize_heaps();
+    graph.initialize_data_structures();
     Ok(graph)
 }
 

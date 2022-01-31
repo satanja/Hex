@@ -1,6 +1,7 @@
 use std::{iter::Filter, usize};
 
-use crate::util::{Heap, KeyValue, MaxItem};
+use crate::util::{Heap, KeyValue, MaxItem, MinItem, RangeSet};
+
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Graph {
@@ -26,6 +27,11 @@ pub struct Graph {
 
     /// Current in-degree of each vertex
     current_in_degree: Vec<usize>,
+
+    /// H
+    sink_source_buffer: Vec<u32>,
+
+    sinks_or_sources: RangeSet,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,6 +57,8 @@ impl Graph {
             max_degree_heap: Heap::new(0),
             current_out_degree: vec![0; vertices],
             current_in_degree: vec![0; vertices],
+            sink_source_buffer: Vec::new(),
+            sinks_or_sources: RangeSet::new(vertices),
         }
     }
 
@@ -63,9 +71,9 @@ impl Graph {
         }
     }
 
-    pub fn initialize_heaps(&mut self) {
+    pub fn initialize_data_structures(&mut self) {
+        // initialize the heaps
         let mut data = Vec::with_capacity(self.total_vertices());
-
         for vertex in 0..self.total_vertices() {
             self.current_in_degree[vertex] = self.rev_adj[vertex].len();
             let item = MaxItem::new(
@@ -75,6 +83,13 @@ impl Graph {
             data.push(item);
         }
         self.max_degree_heap.load(data);
+
+        // already look for vertices that are sources or sinks
+        for vertex in 0..self.total_vertices() {
+            if self.current_in_degree[vertex] == 0 || self.current_out_degree[vertex] == 0 {
+                self.sink_source_buffer.push(vertex as u32);
+            }
+        }
     }
 
     pub fn set_adjacency(&mut self, source: u32, targets: Vec<u32>) {
@@ -95,23 +110,41 @@ impl Graph {
         self.num_active_vertices
     }
 
+    /// Requirement: only after disabling a vertex do data structures need to be
+    /// updated. Vertices disabled during kernelizations shall no longer be
+    /// enabled.
     pub fn disable_vertex(&mut self, vertex: u32) {
+        // remove from heaps
+        self.max_degree_heap.decrease_key(MaxItem::new(
+            vertex as usize,
+            (self.total_vertices() + 1) as i64,
+        ));
+        
+        let val = self.max_degree_heap.extract_min();
+        debug_assert_eq!(val.unwrap().key() as u32, vertex);
+        
+        // update synposi
         self.active_vertices[vertex as usize] = false;
         self.coloring[vertex as usize] = Color::Exhausted;
         self.num_active_vertices -= 1;
 
+        // update data structures for affected vertices
         for incoming in &self.rev_adj[vertex as usize] {
             if self.active_vertices[*incoming as usize] {
                 self.current_out_degree[*incoming as usize] -= 1;
-                // let deg = self.current_out_degree[*incoming as usize];
-                // self.max_degree_heap
-                //     .decrease_key(MaxItem::new(*incoming as usize, deg as i64));
+
+                if self.current_out_degree[*incoming as usize] == 0 {
+                    self.sink_source_buffer.push(*incoming);
+                }
             }
         }
 
         for outgoing in &self.adj[vertex as usize] {
             if self.active_vertices[*outgoing as usize] {
                 self.current_in_degree[*outgoing as usize] -= 1;
+                if self.current_in_degree[*outgoing as usize] == 0 {
+                    self.sink_source_buffer.push(*outgoing);
+                }
             }
         }
 
@@ -253,17 +286,26 @@ impl Graph {
     // Can be optimized using a heap. Each time a vertex is disabled, we can
     // update the number of in and outgoing edges.
     pub fn max_degree_vertex(&mut self) -> u32 {
-        let max = self.max_degree_heap.extract_min().unwrap();
+        let max = self.max_degree_heap.peek_min().unwrap();
         max.key() as u32
     }
 
-    // fn sink_source_reduction(&mut self) -> bool {
-    //     // definitely use a heap to keep track of vertices that are either
-    //     // or sinks
-    //     for vertex in self.total_vertices() {
-    //         if !self.active_vertices[vertex] {}
-    //     }
-    // }
+    fn has_sink_or_source(&self) -> bool {
+        self.sink_source_buffer.len() != 0
+    }
+
+    fn sink_or_source_reduction(&mut self) {
+        while let Some(vertex) = self.sink_source_buffer.pop() {
+            // See if it is possible not to add already disabled vertices
+            if self.active_vertices[vertex as usize] {
+                self.sinks_or_sources.insert(vertex);
+            }
+        }
+
+        while let Some(vertex) = self.sinks_or_sources.pop() {
+            self.disable_vertex(vertex as u32);
+        }
+    }
 
     // fn contract(&mut self, vertex: u32) {
     //     let target = self.adj[vertex as usize][0];
@@ -279,7 +321,7 @@ impl Graph {
     // }
 }
 
-trait Reducable {
+pub trait Reducable {
     fn reduce(&mut self);
 }
 
@@ -287,8 +329,21 @@ impl Reducable for Graph {
     fn reduce(&mut self) {
         let mut reduced = true;
         while reduced {
-            // reduced |= self.sink_source_reduction();
+            reduced = false;
+            if self.has_sink_or_source() {
+                self.sink_or_source_reduction();
+                reduced = true;
+            }
         }
+        let mut k = 0;
+        for vertex in 0..self.total_vertices() {
+            if self.active_vertices[vertex] {
+                if self.current_in_degree[vertex] == 1 && self.current_out_degree[vertex] == 1 {
+                    k += 1;
+                }
+            }
+        }
+        println!("{}", k);
     }
 }
 
