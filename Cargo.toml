@@ -8,8 +8,14 @@ edition = "2021"
 
 [dependencies]
 
-[features]
-
 [profile.release]
 lto = true
 opt-level = 3
+
+[[bin]]
+name = "debugtritus"
+path = "src/bin-debug.rs"
+
+[[bin]]
+name = "dfvstritus"
+path = "src/main.rs"

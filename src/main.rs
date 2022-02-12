@@ -1,38 +1,14 @@
+//! Main entry point of the contest-deliverable. A Graph is read from stdin and 
+//! is then supplied to the algorithm, and after, the solution is written to
+//! stdout.
 mod exact;
 mod graph;
 mod heur;
 mod io;
 mod util;
 
-use std::env;
-use std::fs;
-
-use graph::Graph;
-use io::{read, write};
-
-use crate::exact::branch_and_bound;
-use graph::Reducable;
-
 fn main() {
-    let args: Vec<_> = env::args().collect();
-    let paths = fs::read_dir("./exact_instances/").unwrap();
-    for path in paths {
-        let pb = path.unwrap().path();
-        let mut graph = io::read_from_path(pb).unwrap();
-        graph.reduce();
-        // print!("computing upper bound...\t");
-        // let upper_bound = graph.total_vertices() - heur::greedy_and_reduce(&graph).len();
-        // println!("{}", upper_bound);
-        // if let Some(solution) = branch_and_bound(&mut graph, &mut 0, 0, upper_bound) {
-        //     write(solution);
-        // }
-    }
-
-    // let mut graph = read().unwrap();
-    // let g2 = graph.clone();
-    // let upper_bound = graph.total_vertices() - heur::greedy(&graph).len(); // substitute for a better upper bound computation
-    // println!("{}", upper_bound);
-    // if let Some(solution) = branch_and_bound(&mut graph, &mut 0, upper_bound) {
-    //     write(solution);
-    // }
+    let graph = io::read().unwrap();
+    let solution = heur::greedy_and_reduce(&graph);
+    io::write(solution);
 }
