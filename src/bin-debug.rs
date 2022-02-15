@@ -1,7 +1,7 @@
-//! Main file specifically for debugging: VScode does not support piping 
+//! Main file specifically for debugging: VScode does not support piping
 //! with launch tasks, and manually supplying the file to the stdin is
-//! cumbersome. Instead of reading from stdin, all instances in a directory are 
-//! loaded in and ran on whatever is in the main function (this will change 
+//! cumbersome. Instead of reading from stdin, all instances in a directory are
+//! loaded in and ran on whatever is in the main function (this will change
 //! throughout the project).
 
 mod exact;
@@ -24,8 +24,7 @@ fn main() {
     let paths = fs::read_dir("./instances/").unwrap();
     for path in paths {
         let pb = path.unwrap().path();
-        let mut graph = io::read_from_path(pb).unwrap();
-        graph.reduce();
-        println!("{}", graph.total_vertices());
+        let graph = io::read_from_path(pb).unwrap();
+        println!("{}", heur::greedy_and_reduce(&graph).len());
     }
 }

@@ -76,10 +76,16 @@ impl Graph {
     }
 
     pub fn remove_vertex(&mut self, vertex: u32) {
-        let list = std::mem::take(&mut self.adj[vertex as usize]);
-        for next in list {
+        self.deleted_vertices[vertex as usize] = true;
+        let forward_list = std::mem::take(&mut self.adj[vertex as usize]);
+        for next in forward_list {
             let index = self.rev_adj[next as usize].binary_search(&vertex).unwrap();
             self.rev_adj[next as usize].remove(index);
+        }
+        let backward_list = std::mem::take(&mut self.rev_adj[vertex as usize]);
+        for source in backward_list {
+            let index = self.adj[source as usize].binary_search(&vertex).unwrap();
+            self.adj[source as usize].remove(index);
         }
     }
 
@@ -112,8 +118,13 @@ impl Graph {
         self.adj[source as usize] = targets;
     }
 
-    /// Returns the number (remaining) of vertices in the graph
+    /// Returns the number of vertices in the original graph
     pub fn total_vertices(&self) -> usize {
+        self.adj.len()
+    }
+
+    /// Returns the number of remaining vertices
+    pub fn vertices(&self) -> usize {
         let mut n = 0;
         for i in 0..self.adj.len() {
             if !self.deleted_vertices[i] {
@@ -208,17 +219,15 @@ impl Graph {
     //     }
     // }
 
-    // pub fn disable_vertex_post(&mut self, vertex: u32) {
-    //     self.active_vertices[vertex as usize] = false;
-    //     self.coloring[vertex as usize] = Color::Exhausted;
-    //     self.num_active_vertices -= 1;
-    // }
+    pub fn disable_vertex_post(&mut self, vertex: u32) {
+        self.deleted_vertices[vertex as usize] = true;
+        self.coloring[vertex as usize] = Color::Exhausted;
+    }
 
-    // pub fn enable_vertex_post(&mut self, vertex: u32) {
-    //     self.active_vertices[vertex as usize] = true;
-    //     self.coloring[vertex as usize] = Color::Unvisited;
-    //     self.num_active_vertices += 1;
-    // }
+    pub fn enable_vertex_post(&mut self, vertex: u32) {
+        self.deleted_vertices[vertex as usize] = true;
+        self.coloring[vertex as usize] = Color::Unvisited;
+    }
 
     // pub fn get_active_vertices(&self) -> Vec<u32> {
     //     let mut result = Vec::new();
@@ -267,7 +276,7 @@ impl Graph {
     pub fn is_cyclic(&self) -> bool {
         let mut local_coloring = self.coloring.clone();
         for i in 0..self.total_vertices() {
-            if !self.deleted_vertices[i] {
+            if self.deleted_vertices[i] {
                 continue;
             }
             match local_coloring[i] {
@@ -312,7 +321,28 @@ impl Graph {
     // Can be optimized using a heap. Each time a vertex is disabled, we can
     // update the number of in and outgoing edges.
     pub fn max_degree_vertex(&mut self) -> u32 {
-        0
+        let mut max_deg = 0;
+        let mut max_vertex = 0;
+        for vertex in 0..self.total_vertices() {
+            if !self.deleted_vertices[vertex] {
+                let deg_out = self.adj[vertex]
+                    .iter()
+                    .filter(|u| self.active_vertices[**u as usize])
+                    .fold(0, |acc, _| acc + 1) as u32;
+
+                let deg_in = self.rev_adj[vertex]
+                    .iter()
+                    .filter(|u| self.active_vertices[**u as usize])
+                    .fold(0, |acc, _| acc + 1) as u32;
+
+                if deg_in + deg_out > max_deg {
+                    max_deg = deg_in + deg_out;
+                    max_vertex = vertex;
+                }
+            }
+        }
+
+        max_vertex as u32
     }
 
     fn has_self_loop(&self) -> bool {
@@ -452,36 +482,24 @@ impl Graph {
     fn sink_or_source_reduction(&mut self) {
         for i in 0..self.adj.len() {
             if self.adj[i].len() == 0 && !self.deleted_vertices[i] {
-                self.deleted_vertices[i] = true;
-                for vertex in &self.rev_adj[i] {
-                    if let Ok(index) = self.adj[*vertex as usize].binary_search(&(i as u32)) {
-                        self.adj[*vertex as usize].remove(index);
-                    }
-                }
-                self.rev_adj[i].clear();
+                self.remove_vertex(i as u32);
             }
         }
 
         for i in 0..self.rev_adj.len() {
             if self.rev_adj[i].len() == 0 && !self.deleted_vertices[i] {
-                self.deleted_vertices[i] = true;
-                for vertex in &self.adj[i] {
-                    if let Ok(index) = self.rev_adj[*vertex as usize].binary_search(&(i as u32)) {
-                        self.rev_adj[*vertex as usize].remove(index);
-                    }
-                }
-                self.adj[i].clear()
+                self.remove_vertex(i as u32);
             }
         }
     }
 }
 
 pub trait Reducable {
-    fn reduce(&mut self);
+    fn reduce(&mut self) -> Vec<u32>;
 }
 
 impl Reducable for Graph {
-    fn reduce(&mut self) {
+    fn reduce(&mut self) -> Vec<u32> {
         let mut reduced = true;
         let mut forced = Vec::new();
         while reduced {
@@ -504,6 +522,7 @@ impl Reducable for Graph {
                 reduced = true;
             }
         }
+        forced
     }
 }
 
@@ -542,43 +561,64 @@ mod tests {
         graph
     }
 
+
     #[test]
-    fn has_cycle_test_001() {
+    fn is_cyclic_test_001() {
+        let graph = pace_example_graph();
+        assert!(graph.is_cyclic());
+    }
+
+    #[test]
+    fn is_cyclic_test_002() {
+        let mut graph = pace_example_graph();
+        graph.remove_vertex(1);
+        assert!(graph.is_cyclic());
+    }
+
+    #[test]
+    fn is_cyclic_test_003() {
+        let mut graph = pace_example_graph();
+        graph.remove_vertex(0);
+        assert!(!graph.is_cyclic());
+    }
+
+    #[test]
+    fn has_fvs_cycle_test_001() {
         let graph = pace_example_graph();
         let fvs = vec![];
         assert_eq!(graph.has_cycle_with_fvs(&fvs), true);
     }
 
     #[test]
-    fn has_cycle_test_002() {
+    fn has_fvs_cycle_test_002() {
         let graph = pace_example_graph();
         let fvs = vec![1];
         assert_eq!(graph.has_cycle_with_fvs(&fvs), true);
     }
 
     #[test]
-    fn has_cycle_test_003() {
+    fn has_fvs_cycle_test_003() {
         let graph = pace_example_graph();
         let fvs = vec![1];
         assert_eq!(graph.has_cycle_with_fvs(&fvs), true);
     }
 
     #[test]
-    fn has_cycle_test_004() {
+    fn has_fvs_cycle_test_004() {
         let graph = pace_example_graph();
         let fvs = vec![0];
         assert_eq!(graph.has_cycle_with_fvs(&fvs), false);
     }
 
     #[test]
-    fn has_cycle_test_005() {
+    fn has_fvs_cycle_test_005() {
         let graph = pace_example_graph();
         let fvs = vec![2];
         assert_eq!(graph.has_cycle_with_fvs(&fvs), false);
     }
 
     #[test]
-    fn has_cycle_test_006() {
+    fn has_fvs_cycle_test_006() {
         let graph = pace_example_graph();
         let fvs = vec![3];
         assert_eq!(graph.has_cycle_with_fvs(&fvs), false);
@@ -590,6 +630,5 @@ mod tests {
         graph.add_arc(0, 1);
         graph.add_arc(1, 0);
         graph.reduce();
-        println!("sup");
     }
 }
