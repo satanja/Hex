@@ -1,14 +1,14 @@
+use core::fmt;
 use std::{iter::Filter, usize};
 
 use crate::util::{Heap, KeyValue, MaxItem, MinItem, RangeSet};
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Graph {
-    /// The list of vertices which are not deleted.
+    // /// The list of vertices which are not deleted.
     active_vertices: Vec<bool>,
 
-    ///
+    // ///
     num_active_vertices: usize,
 
     coloring: Vec<Color>,
@@ -19,19 +19,22 @@ pub struct Graph {
     /// The adjacency list representation of the reversed graph.
     rev_adj: Vec<Vec<u32>>,
 
-    /// Out-degree heap
+    // /// Out-degree heap
     max_degree_heap: Heap<MaxItem>,
 
-    /// Current out-degree of each vertex
+    // /// Current out-degree of each vertex
     current_out_degree: Vec<usize>,
 
-    /// Current in-degree of each vertex
+    // /// Current in-degree of each vertex
     current_in_degree: Vec<usize>,
 
-    /// H
+    // /// H
     sink_source_buffer: Vec<u32>,
 
     sinks_or_sources: RangeSet,
+
+    // test
+    deleted_vertices: Vec<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,6 +62,7 @@ impl Graph {
             current_in_degree: vec![0; vertices],
             sink_source_buffer: Vec::new(),
             sinks_or_sources: RangeSet::new(vertices),
+            deleted_vertices: vec![false; vertices],
         }
     }
 
@@ -71,26 +75,34 @@ impl Graph {
         }
     }
 
-    pub fn initialize_data_structures(&mut self) {
-        // initialize the heaps
-        let mut data = Vec::with_capacity(self.total_vertices());
-        for vertex in 0..self.total_vertices() {
-            self.current_in_degree[vertex] = self.rev_adj[vertex].len();
-            let item = MaxItem::new(
-                vertex,
-                (self.adj[vertex].len() + self.rev_adj[vertex].len()) as i64,
-            );
-            data.push(item);
-        }
-        self.max_degree_heap.load(data);
-
-        // already look for vertices that are sources or sinks
-        for vertex in 0..self.total_vertices() {
-            if self.current_in_degree[vertex] == 0 || self.current_out_degree[vertex] == 0 {
-                self.sink_source_buffer.push(vertex as u32);
-            }
+    pub fn remove_vertex(&mut self, vertex: u32) {
+        let list = std::mem::take(&mut self.adj[vertex as usize]);
+        for next in list {
+            let index = self.rev_adj[next as usize].binary_search(&vertex).unwrap();
+            self.rev_adj[next as usize].remove(index);
         }
     }
+
+    // pub fn initialize_data_structures(&mut self) {
+    //     // initialize the heaps
+    //     let mut data = Vec::with_capacity(self.total_vertices());
+    //     for vertex in 0..self.total_vertices() {
+    //         self.current_in_degree[vertex] = self.rev_adj[vertex].len();
+    //         let item = MaxItem::new(
+    //             vertex,
+    //             (self.adj[vertex].len() + self.rev_adj[vertex].len()) as i64,
+    //         );
+    //         data.push(item);
+    //     }
+    //     self.max_degree_heap.load(data);
+
+    //     // already look for vertices that are sources or sinks
+    //     for vertex in 0..self.total_vertices() {
+    //         if self.current_in_degree[vertex] == 0 || self.current_out_degree[vertex] == 0 {
+    //             self.sink_source_buffer.push(vertex as u32);
+    //         }
+    //     }
+    // }
 
     pub fn set_adjacency(&mut self, source: u32, targets: Vec<u32>) {
         for vertex in &targets {
@@ -102,117 +114,131 @@ impl Graph {
 
     /// Returns the number (remaining) of vertices in the graph
     pub fn total_vertices(&self) -> usize {
-        // TODO compute the actual number of remaining vertices in the graph
-        self.adj.len()
-    }
-
-    pub fn num_active_vertices(&self) -> usize {
-        self.num_active_vertices
-    }
-
-    /// Requirement: only after disabling a vertex do data structures need to be
-    /// updated. Vertices disabled during kernelizations shall no longer be
-    /// enabled.
-    pub fn disable_vertex(&mut self, vertex: u32) {
-        // remove from heaps
-        self.max_degree_heap.decrease_key(MaxItem::new(
-            vertex as usize,
-            (self.total_vertices() + 1) as i64,
-        ));
-        
-        let val = self.max_degree_heap.extract_min();
-        debug_assert_eq!(val.unwrap().key() as u32, vertex);
-        
-        // update synposi
-        self.active_vertices[vertex as usize] = false;
-        self.coloring[vertex as usize] = Color::Exhausted;
-        self.num_active_vertices -= 1;
-
-        // update data structures for affected vertices
-        for incoming in &self.rev_adj[vertex as usize] {
-            if self.active_vertices[*incoming as usize] {
-                self.current_out_degree[*incoming as usize] -= 1;
-
-                if self.current_out_degree[*incoming as usize] == 0 {
-                    self.sink_source_buffer.push(*incoming);
-                }
+        let mut n = 0;
+        for i in 0..self.adj.len() {
+            if !self.deleted_vertices[i] {
+                n += 1;
             }
         }
-
-        for outgoing in &self.adj[vertex as usize] {
-            if self.active_vertices[*outgoing as usize] {
-                self.current_in_degree[*outgoing as usize] -= 1;
-                if self.current_in_degree[*outgoing as usize] == 0 {
-                    self.sink_source_buffer.push(*outgoing);
-                }
-            }
-        }
-
-        for incoming in &self.rev_adj[vertex as usize] {
-            if self.active_vertices[*incoming as usize] {
-                let deg = self.current_out_degree[*incoming as usize]
-                    + self.current_in_degree[*incoming as usize];
-                self.max_degree_heap
-                    .decrease_key(MaxItem::new(*incoming as usize, deg as i64));
-            }
-        }
-
-        for outgoing in &self.adj[vertex as usize] {
-            if self.active_vertices[*outgoing as usize] {
-                let deg = self.current_out_degree[*outgoing as usize]
-                    + self.current_in_degree[*outgoing as usize];
-                self.max_degree_heap
-                    .decrease_key(MaxItem::new(*outgoing as usize, deg as i64));
-            }
-        }
+        n
     }
 
-    pub fn enable_vertex(&mut self, vertex: u32) {
-        self.active_vertices[vertex as usize] = true;
-        self.coloring[vertex as usize] = Color::Unvisited;
-        self.num_active_vertices += 1;
-
-        for incoming in &self.rev_adj[vertex as usize] {
-            if self.active_vertices[*incoming as usize] {
-                self.current_out_degree[*incoming as usize] += 1;
-                let deg = self.current_out_degree[*incoming as usize];
-                self.max_degree_heap
-                    .decrease_key(MaxItem::new(*incoming as usize, deg as i64));
+    pub fn is_empty(&self) -> bool {
+        for i in 0..self.adj.len() {
+            if !self.deleted_vertices[i] {
+                return false;
             }
         }
+        true
     }
 
-    pub fn disable_vertex_post(&mut self, vertex: u32) {
-        self.active_vertices[vertex as usize] = false;
-        self.coloring[vertex as usize] = Color::Exhausted;
-        self.num_active_vertices -= 1;
-    }
+    // pub fn num_active_vertices(&self) -> usize {
+    //     self.num_active_vertices
+    // }
 
-    pub fn enable_vertex_post(&mut self, vertex: u32) {
-        self.active_vertices[vertex as usize] = true;
-        self.coloring[vertex as usize] = Color::Unvisited;
-        self.num_active_vertices += 1;
-    }
+    // /// Requirement: only after disabling a vertex do data structures need to be
+    // /// updated. Vertices disabled during kernelizations shall no longer be
+    // /// enabled.
+    // pub fn disable_vertex(&mut self, vertex: u32) {
+    //     // remove from heaps
+    //     self.max_degree_heap.decrease_key(MaxItem::new(
+    //         vertex as usize,
+    //         (self.total_vertices() + 1) as i64,
+    //     ));
 
-    pub fn get_active_vertices(&self) -> Vec<u32> {
-        let mut result = Vec::new();
-        for i in 0..self.total_vertices() {
-            if self.active_vertices[i] {
-                result.push(i as u32);
-            }
-        }
-        result
-    }
+    //     let val = self.max_degree_heap.extract_min();
+    //     debug_assert_eq!(val.unwrap().key() as u32, vertex);
 
-    pub fn get_disabled_vertices(&self) -> Vec<u32> {
-        let mut result = Vec::new();
-        for i in 0..self.total_vertices() {
-            if !self.active_vertices[i] {
-                result.push(i as u32)
-            }
-        }
-        result
-    }
+    //     // update synposi
+    //     self.active_vertices[vertex as usize] = false;
+    //     self.coloring[vertex as usize] = Color::Exhausted;
+    //     self.num_active_vertices -= 1;
+
+    //     // update data structures for affected vertices
+    //     for incoming in &self.rev_adj[vertex as usize] {
+    //         if self.active_vertices[*incoming as usize] {
+    //             self.current_out_degree[*incoming as usize] -= 1;
+
+    //             if self.current_out_degree[*incoming as usize] == 0 {
+    //                 self.sink_source_buffer.push(*incoming);
+    //             }
+    //         }
+    //     }
+
+    //     for outgoing in &self.adj[vertex as usize] {
+    //         if self.active_vertices[*outgoing as usize] {
+    //             self.current_in_degree[*outgoing as usize] -= 1;
+    //             if self.current_in_degree[*outgoing as usize] == 0 {
+    //                 self.sink_source_buffer.push(*outgoing);
+    //             }
+    //         }
+    //     }
+
+    //     for incoming in &self.rev_adj[vertex as usize] {
+    //         if self.active_vertices[*incoming as usize] {
+    //             let deg = self.current_out_degree[*incoming as usize]
+    //                 + self.current_in_degree[*incoming as usize];
+    //             self.max_degree_heap
+    //                 .decrease_key(MaxItem::new(*incoming as usize, deg as i64));
+    //         }
+    //     }
+
+    //     for outgoing in &self.adj[vertex as usize] {
+    //         if self.active_vertices[*outgoing as usize] {
+    //             let deg = self.current_out_degree[*outgoing as usize]
+    //                 + self.current_in_degree[*outgoing as usize];
+    //             self.max_degree_heap
+    //                 .decrease_key(MaxItem::new(*outgoing as usize, deg as i64));
+    //         }
+    //     }
+    // }
+
+    // pub fn enable_vertex(&mut self, vertex: u32) {
+    //     self.active_vertices[vertex as usize] = true;
+    //     self.coloring[vertex as usize] = Color::Unvisited;
+    //     self.num_active_vertices += 1;
+
+    //     for incoming in &self.rev_adj[vertex as usize] {
+    //         if self.active_vertices[*incoming as usize] {
+    //             self.current_out_degree[*incoming as usize] += 1;
+    //             let deg = self.current_out_degree[*incoming as usize];
+    //             self.max_degree_heap
+    //                 .decrease_key(MaxItem::new(*incoming as usize, deg as i64));
+    //         }
+    //     }
+    // }
+
+    // pub fn disable_vertex_post(&mut self, vertex: u32) {
+    //     self.active_vertices[vertex as usize] = false;
+    //     self.coloring[vertex as usize] = Color::Exhausted;
+    //     self.num_active_vertices -= 1;
+    // }
+
+    // pub fn enable_vertex_post(&mut self, vertex: u32) {
+    //     self.active_vertices[vertex as usize] = true;
+    //     self.coloring[vertex as usize] = Color::Unvisited;
+    //     self.num_active_vertices += 1;
+    // }
+
+    // pub fn get_active_vertices(&self) -> Vec<u32> {
+    //     let mut result = Vec::new();
+    //     for i in 0..self.total_vertices() {
+    //         if self.active_vertices[i] {
+    //             result.push(i as u32);
+    //         }
+    //     }
+    //     result
+    // }
+
+    // pub fn get_disabled_vertices(&self) -> Vec<u32> {
+    //     let mut result = Vec::new();
+    //     for i in 0..self.total_vertices() {
+    //         if !self.active_vertices[i] {
+    //             result.push(i as u32)
+    //         }
+    //     }
+    //     result
+    // }
 
     /// Helper algorithm to find cycles in the directed graph.
     fn visit(&self, vertex: usize, coloring: &mut Vec<Color>) -> bool {
@@ -241,7 +267,7 @@ impl Graph {
     pub fn is_cyclic(&self) -> bool {
         let mut local_coloring = self.coloring.clone();
         for i in 0..self.total_vertices() {
-            if !self.active_vertices[i] {
+            if !self.deleted_vertices[i] {
                 continue;
             }
             match local_coloring[i] {
@@ -286,39 +312,168 @@ impl Graph {
     // Can be optimized using a heap. Each time a vertex is disabled, we can
     // update the number of in and outgoing edges.
     pub fn max_degree_vertex(&mut self) -> u32 {
-        let max = self.max_degree_heap.peek_min().unwrap();
-        max.key() as u32
+        0
+    }
+
+    fn has_self_loop(&self) -> bool {
+        for i in 0..self.adj.len() {
+            if self.adj[i].contains(&(i as u32)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn self_loop_reduction(&mut self) -> Vec<u32> {
+        let mut forced = Vec::new();
+        for i in 0..self.adj.len() {
+            if self.adj[i].contains(&(i as u32)) {
+                forced.push(i as u32);
+                self.remove_vertex(i as u32);
+            }
+        }
+        forced
     }
 
     fn has_sink_or_source(&self) -> bool {
-        self.sink_source_buffer.len() != 0
-    }
-
-    fn sink_or_source_reduction(&mut self) {
-        while let Some(vertex) = self.sink_source_buffer.pop() {
-            // See if it is possible not to add already disabled vertices
-            if self.active_vertices[vertex as usize] {
-                self.sinks_or_sources.insert(vertex);
+        // naive implementation to start
+        for i in 0..self.adj.len() {
+            let list = &self.adj[i];
+            if list.len() == 0 && !self.deleted_vertices[i] {
+                return true;
             }
         }
 
-        while let Some(vertex) = self.sinks_or_sources.pop() {
-            self.disable_vertex(vertex as u32);
+        for i in 0..self.rev_adj.len() {
+            let list = &self.rev_adj[i];
+            if list.len() == 0 && !self.deleted_vertices[i] {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn has_single_outgoing(&self) -> bool {
+        for i in 0..self.adj.len() {
+            let list = &self.adj[i];
+            if list.len() == 1 && !self.deleted_vertices[i] {
+                if list[0] != i as u32 {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    fn has_single_incoming(&self) -> bool {
+        for i in 0..self.rev_adj.len() {
+            let list = &self.rev_adj[i];
+            if list.len() == 1 && !self.deleted_vertices[i] {
+                if list[0] != i as u32 {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    fn single_incoming_join(&mut self) {
+        for i in 0..self.rev_adj.len() {
+            let list = &self.rev_adj[i];
+            if list.len() == 1 && !self.deleted_vertices[i] {
+                let source = *list.first().unwrap();
+                if source == i as u32 {
+                    // self-loop
+                    continue;
+                }
+
+                // mark the vertex as deleted
+                self.deleted_vertices[i] = true;
+
+                // get the targets
+                let nexts = self.adj[i].clone();
+
+                // already erase the adjacency list
+                self.adj[i].clear();
+
+                // vertex i is located in the forward adjacency list of the
+                // source
+                let index = self.adj[source as usize]
+                    .binary_search(&(i as u32))
+                    .unwrap();
+                self.adj[source as usize].remove(index);
+
+                // redirect edges
+                for next in nexts {
+                    let v_index = self.rev_adj[next as usize]
+                        .binary_search(&(i as u32))
+                        .unwrap();
+                    self.rev_adj[next as usize].remove(v_index);
+                    self.add_arc(source, next);
+                }
+                self.rev_adj[i].clear();
+            }
         }
     }
 
-    // fn contract(&mut self, vertex: u32) {
-    //     let target = self.adj[vertex as usize][0];
-    //     for source in self.rev_adj[vertex as usize] {
-    //         if self.adj.len() <= 25 {
-    //             for i in 0..self.adj[source].len() {
+    fn single_outgoing_join(&mut self) {
+        for i in 0..self.adj.len() {
+            let list = &self.adj[i];
+            if list.len() == 1 && !self.deleted_vertices[i] {
+                // get the single target
+                let target = *list.first().unwrap();
+                if target == i as u32 {
+                    // self-loop
+                    continue;
+                }
+                // mark the vertex as deleted
+                self.deleted_vertices[i] = true;
 
-    //             }
-    //         } else {
+                // get the sources & clear
+                let sources = self.rev_adj[i].clone();
+                self.rev_adj[i].clear();
+                let index = self.rev_adj[target as usize]
+                    .binary_search(&(i as u32))
+                    .unwrap();
+                self.rev_adj[target as usize].remove(index);
 
-    //         }
-    //     }
-    // }
+                for source in sources {
+                    let v_index = self.adj[source as usize]
+                        .binary_search(&(i as u32))
+                        .unwrap();
+                    self.adj[source as usize].remove(v_index);
+                    self.add_arc(source, target);
+                }
+                self.adj[i].clear();
+            }
+        }
+    }
+
+    fn sink_or_source_reduction(&mut self) {
+        for i in 0..self.adj.len() {
+            if self.adj[i].len() == 0 && !self.deleted_vertices[i] {
+                self.deleted_vertices[i] = true;
+                for vertex in &self.rev_adj[i] {
+                    if let Ok(index) = self.adj[*vertex as usize].binary_search(&(i as u32)) {
+                        self.adj[*vertex as usize].remove(index);
+                    }
+                }
+                self.rev_adj[i].clear();
+            }
+        }
+
+        for i in 0..self.rev_adj.len() {
+            if self.rev_adj[i].len() == 0 && !self.deleted_vertices[i] {
+                self.deleted_vertices[i] = true;
+                for vertex in &self.adj[i] {
+                    if let Ok(index) = self.rev_adj[*vertex as usize].binary_search(&(i as u32)) {
+                        self.rev_adj[*vertex as usize].remove(index);
+                    }
+                }
+                self.adj[i].clear()
+            }
+        }
+    }
 }
 
 pub trait Reducable {
@@ -328,22 +483,48 @@ pub trait Reducable {
 impl Reducable for Graph {
     fn reduce(&mut self) {
         let mut reduced = true;
+        let mut forced = Vec::new();
         while reduced {
             reduced = false;
             if self.has_sink_or_source() {
                 self.sink_or_source_reduction();
                 reduced = true;
+                continue;
+            }
+            if self.has_single_outgoing() {
+                self.single_outgoing_join();
+                reduced = true;
+            }
+            if self.has_single_incoming() {
+                self.single_incoming_join();
+                reduced = true;
+            }
+            if self.has_self_loop() {
+                forced.append(&mut self.self_loop_reduction());
+                reduced = true;
             }
         }
-        let mut k = 0;
-        for vertex in 0..self.total_vertices() {
-            if self.active_vertices[vertex] {
-                if self.current_in_degree[vertex] == 1 && self.current_out_degree[vertex] == 1 {
-                    k += 1;
+    }
+}
+
+impl fmt::Display for Graph {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} 0 0\n", self.total_vertices())?;
+        for list in &self.adj {
+            let mut first = true;
+            for i in 0..list.len() {
+                if self.active_vertices[list[i] as usize] {
+                    if first {
+                        write!(f, "{}", list[i] + 1)?;
+                        first = false;
+                    } else {
+                        write!(f, " {}", list[i] + 1)?;
+                    }
                 }
             }
+            write!(f, "\n")?;
         }
-        println!("{}", k);
+        Ok(())
     }
 }
 
@@ -401,5 +582,14 @@ mod tests {
         let graph = pace_example_graph();
         let fvs = vec![3];
         assert_eq!(graph.has_cycle_with_fvs(&fvs), false);
+    }
+
+    #[test]
+    fn self_loop_test() {
+        let mut graph = Graph::new(2);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 0);
+        graph.reduce();
+        println!("sup");
     }
 }

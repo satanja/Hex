@@ -93,7 +93,7 @@ pub fn read_from_path(path: PathBuf) -> Result<Graph> {
         index += 1;
     }
 
-    graph.initialize_data_structures();
+    // graph.initialize_data_structures();
     Ok(graph)
 }
 

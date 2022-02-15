@@ -21,10 +21,11 @@ use graph::Reducable;
 
 fn main() {
     let args: Vec<_> = env::args().collect();
-    let paths = fs::read_dir("./exact_instances/").unwrap();
+    let paths = fs::read_dir("./instances/").unwrap();
     for path in paths {
         let pb = path.unwrap().path();
         let mut graph = io::read_from_path(pb).unwrap();
         graph.reduce();
+        println!("{}", graph.total_vertices());
     }
 }

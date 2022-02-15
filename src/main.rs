@@ -1,4 +1,4 @@
-//! Main entry point of the contest-deliverable. A Graph is read from stdin and 
+//! Main entry point of the contest-deliverable. A Graph is read from stdin and
 //! is then supplied to the algorithm, and after, the solution is written to
 //! stdout.
 mod exact;
@@ -7,8 +7,10 @@ mod heur;
 mod io;
 mod util;
 
+use graph::Reducable;
+
 fn main() {
-    let graph = io::read().unwrap();
-    let solution = heur::greedy_and_reduce(&graph);
-    io::write(solution);
+    let mut graph = io::read().unwrap();
+    graph.reduce();
+    println!("{}", graph);
 }
