@@ -1,8 +1,7 @@
 /target
 /.vscode
 /.idea
-/exact_instances
-/heur_instances
-/exact_solutions
+/instances
+/solutions
 /test_instances
 verifier
