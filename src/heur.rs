@@ -46,5 +46,8 @@ pub fn greedy_and_reduce(graph: &Graph) -> Vec<u32> {
         solution.push(v);
         solution.append(&mut copy.reduce());
     }
-    make_minimal(&mut graph.clone(), solution)
+    
+    let p = make_minimal(&mut graph.clone(), solution);
+    debug_assert!(!graph.has_cycle_with_fvs(&p));
+    p
 }

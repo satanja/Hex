@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{iter::Filter, usize};
+use std::{iter::Filter, usize, collections::BTreeMap, slice::SliceIndex};
 
 use crate::util::{Heap, KeyValue, MaxItem, MinItem, RangeSet};
 
@@ -407,7 +407,7 @@ impl Graph {
         return false;
     }
 
-    fn single_incoming_join(&mut self) {
+    fn single_incoming_reduction(&mut self) {
         for i in 0..self.rev_adj.len() {
             let list = &self.rev_adj[i];
             if list.len() == 1 && !self.deleted_vertices[i] {
@@ -446,7 +446,7 @@ impl Graph {
         }
     }
 
-    fn single_outgoing_join(&mut self) {
+    fn single_outgoing_reduction(&mut self) {
         for i in 0..self.adj.len() {
             let list = &self.adj[i];
             if list.len() == 1 && !self.deleted_vertices[i] {
@@ -492,6 +492,41 @@ impl Graph {
             }
         }
     }
+
+    fn twin_reduction(&mut self) -> Vec<u32> {
+        let mut classes: BTreeMap<Vec<u32>, Vec<u32>> = BTreeMap::new();
+        let mut forced = Vec::new();
+
+        let mut has_twins = false;
+        for i in 0..self.adj.len() {
+            if self.deleted_vertices[i] {
+                continue;
+            }
+
+            let mut list = self.adj[i].clone();
+            // closed neighborhood
+            list.push(i as u32);
+            list.sort();
+
+            if let Some(class) = classes.get_mut(&list) {
+                class.push(i as u32);
+                has_twins = true;
+            } else {
+                classes.insert(list, Vec::new());
+            }
+        }
+
+        if has_twins || true {
+            for (_, twins) in classes {
+                // efficiently remove a whole lot of vertices
+                for vertex in twins {
+                    self.remove_vertex(vertex);
+                    forced.push(vertex);
+                }
+            }
+        }
+        forced
+    }
 }
 
 pub trait Reducable {
@@ -510,16 +545,25 @@ impl Reducable for Graph {
                 continue;
             }
             if self.has_single_outgoing() {
-                self.single_outgoing_join();
+                self.single_outgoing_reduction();
                 reduced = true;
+                continue;
             }
             if self.has_single_incoming() {
-                self.single_incoming_join();
+                self.single_incoming_reduction();
                 reduced = true;
+                continue;
             }
             if self.has_self_loop() {
                 forced.append(&mut self.self_loop_reduction());
                 reduced = true;
+                continue;
+            }
+
+            let mut twins = self.twin_reduction();
+            if twins.len() != 0 {
+                reduced = true;
+                forced.append(&mut twins);
             }
         }
         forced

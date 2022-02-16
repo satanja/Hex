@@ -24,7 +24,7 @@ fn main() {
     let paths = fs::read_dir("./instances/").unwrap();
     for path in paths {
         let pb = path.unwrap().path();
-        let graph = io::read_from_path(pb).unwrap();
+        let mut graph = io::read_from_path(pb).unwrap();
         println!("{}", heur::greedy_and_reduce(&graph).len());
     }
 }
