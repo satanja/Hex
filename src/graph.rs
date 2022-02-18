@@ -354,36 +354,41 @@ impl Graph {
         comp: &mut Vec<i32>,
         components: &mut i32,
     ) {
-        index_vec[vertex] += *index;
-        *index += 1;
-        low[vertex] = index_vec[vertex];
-        stack.push(vertex);
-
-        for next in &self.adj[vertex] {
-            if index_vec[*next as usize] == -1 {
-                self.strong_connect(
-                    *next as usize,
-                    stack,
-                    index_vec,
-                    index,
-                    low,
-                    comp,
-                    components,
-                );
-                low[vertex] = std::cmp::min(low[vertex], low[*next as usize]);
-            } else if comp[*next as usize] == -1 {
-                low[vertex] = std::cmp::min(low[vertex], low[*next as usize]);
+        let mut work_stack = vec![(vertex, 0)];
+        while let Some((u, j)) = work_stack.pop() {
+            if j == 0 {
+                index_vec[u] = *index;
+                *index += 1;
+                low[u] = index_vec[u];
+                stack.push(u);
             }
-        }
-
-        if index_vec[vertex] == low[vertex] {
-            while let Some(prev) = stack.pop() {
-                comp[prev] = *components;
-                if prev == vertex {
+            let mut recurse = false;
+            for i in j as usize..self.adj[u].len() {
+                let next = self.adj[u][i];
+                if index_vec[next as usize] == -1 {
+                    work_stack.push((u, i + 1));
+                    work_stack.push((next as usize, 0));
+                    recurse = true;
                     break;
+                } else if comp[next as usize] == -1 {
+                    low[u] = std::cmp::min(low[u], index_vec[next as usize]);
                 }
             }
-            *components += 1;
+            if !recurse {
+                if low[u] == index_vec[u] {
+                    while let Some(prev) = stack.pop() {
+                        comp[prev] = *components;
+                        if prev == u {
+                            break;
+                        }
+                    }
+                    *components += 1;
+                }
+                if work_stack.len() != 0 {
+                    let (up, _) = work_stack.last().unwrap();
+                    low[*up] = std::cmp::min(low[*up], low[u]);
+                }
+            }
         }
     }
 
