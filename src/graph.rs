@@ -547,24 +547,6 @@ impl Graph {
         forced
     }
 
-    fn has_sink_or_source(&self) -> bool {
-        // naive implementation to start
-        for i in 0..self.adj.len() {
-            let list = &self.adj[i];
-            if list.len() == 0 && !self.deleted_vertices[i] {
-                return true;
-            }
-        }
-
-        for i in 0..self.rev_adj.len() {
-            let list = &self.rev_adj[i];
-            if list.len() == 0 && !self.deleted_vertices[i] {
-                return true;
-            }
-        }
-        return false;
-    }
-
     fn has_single_outgoing(&self) -> bool {
         for i in 0..self.adj.len() {
             let list = &self.adj[i];
@@ -661,16 +643,19 @@ impl Graph {
         }
     }
 
-    fn sink_or_source_reduction(&mut self) {
+    fn has_empty_vertex(&self) -> bool {
         for i in 0..self.adj.len() {
-            if self.adj[i].len() == 0 && !self.deleted_vertices[i] {
-                self.remove_vertex(i as u32);
+            if self.adj[i].len() == 0 && self.rev_adj[i].len() == 0 && !self.deleted_vertices[i] {
+                return true
             }
         }
+        false
+    }
 
-        for i in 0..self.rev_adj.len() {
-            if self.rev_adj[i].len() == 0 && !self.deleted_vertices[i] {
-                self.remove_vertex(i as u32);
+    fn empty_vertices(&mut self) {
+        for i in 0..self.adj.len() {
+            if self.adj[i].len() == 0 && self.rev_adj[i].len() == 0 && !self.deleted_vertices[i] {
+                self.deleted_vertices[i] = true;
             }
         }
     }
@@ -721,14 +706,15 @@ impl Reducable for Graph {
         let mut forced = Vec::new();
         while reduced {
             reduced = false;
-            // if self.has_sink_or_source() {
-            //     self.sink_or_source_reduction();
-            //     reduced = true;
-            //     continue;
-            // }
             if self.scc_reduction() {
                 reduced = true;
             }
+
+            if self.has_empty_vertex() {
+                self.empty_vertices();
+                reduced = true;
+            }
+
             if self.has_single_outgoing() {
                 self.single_outgoing_reduction();
                 reduced = true;
