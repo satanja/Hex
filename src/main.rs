@@ -12,5 +12,4 @@ use graph::Reducable;
 fn main() {
     let mut graph = io::read().unwrap();
     graph.reduce();
-    println!("{}", graph);
 }

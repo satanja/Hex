@@ -1,7 +1,7 @@
 use core::fmt;
-use std::{collections::BTreeMap, usize};
-
-use crate::util::{Heap, KeyValue, MaxItem, MinItem, RangeSet};
+use std::collections::{BTreeMap, HashSet};
+use fxhash::{FxHashSet, FxHashMap};
+use crate::util;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Graph {
@@ -85,6 +85,38 @@ impl Graph {
         for source in backward_list {
             let index = self.adj[source as usize].binary_search(&vertex).unwrap();
             self.adj[source as usize].remove(index);
+        }
+    }
+
+    fn remove_vertices(&mut self, vertices: Vec<u32>) {
+        let mut affected_vertices_forward = FxHashSet::default();
+        let mut affected_vertices_back = FxHashSet::default();
+        for singleton in &vertices {
+            for target in &self.adj[*singleton as usize] {
+                affected_vertices_forward.insert(*target);
+            }
+            for source in &self.rev_adj[*singleton as usize] {
+                affected_vertices_back.insert(*source);
+            }
+        }
+        for vertex in affected_vertices_forward {
+            // u -> vertex, where u in vertices, so look at reverse adjacency list
+            let list = std::mem::take(&mut self.rev_adj[vertex as usize]);
+            let reduced = util::algorithms::difference(&list, &vertices);
+            self.rev_adj[vertex as usize] = reduced;
+        }
+
+        for vertex in affected_vertices_back {
+            // vertex -> u, where u in vertices, so look at the forward adjacency list
+            let list = std::mem::take(&mut self.adj[vertex as usize]);
+            let reduced = util::algorithms::difference(&list, &vertices);
+            self.adj[vertex as usize] = reduced;
+        }
+
+        for vertex in vertices {
+            self.adj[vertex as usize].clear();
+            self.rev_adj[vertex as usize].clear();
+            self.deleted_vertices[vertex as usize] = true;
         }
     }
 
@@ -443,13 +475,15 @@ impl Graph {
         }
 
         let mut result = false;
+        let mut singletons = Vec::new();
         for component in &components {
             if component.len() == 1 {
-                // TODO possibly optimize
                 result = true;
-                self.remove_vertex(component[0]);
+                singletons.push(component[0]);
             }
         }
+        singletons.sort();
+        self.remove_vertices(singletons);
 
         // compute the induced graph by parts of the strongly connected components
         // SCCs may share edges, but they're irrelevant
@@ -642,7 +676,7 @@ impl Graph {
     }
 
     fn twin_reduction(&mut self) -> Vec<u32> {
-        let mut classes: BTreeMap<Vec<u32>, Vec<u32>> = BTreeMap::new();
+        let mut classes: FxHashMap<Vec<u32>, Vec<u32>> = FxHashMap::default();
         let mut forced = Vec::new();
 
         let mut has_twins = false;

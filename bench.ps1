@@ -5,5 +5,5 @@ Foreach-Object {
     $name = "k" + $_.Name
     Measure-Command {
         $content | ./target/release/dfvstritus.exe | Set-Content -Path "./solutions/$name"
-    } | Select-Object -Property TotalMinutes
+    } | Select-Object -Property TotalSeconds
 }
