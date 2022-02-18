@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{iter::Filter, usize, collections::BTreeMap, slice::SliceIndex};
+use std::{collections::BTreeMap, usize};
 
 use crate::util::{Heap, KeyValue, MaxItem, MinItem, RangeSet};
 
@@ -9,8 +9,7 @@ pub struct Graph {
     active_vertices: Vec<bool>,
 
     // ///
-    num_active_vertices: usize,
-
+    // num_active_vertices: usize,
     coloring: Vec<Color>,
 
     /// The adjacency list representation of the graph.
@@ -20,18 +19,18 @@ pub struct Graph {
     rev_adj: Vec<Vec<u32>>,
 
     // /// Out-degree heap
-    max_degree_heap: Heap<MaxItem>,
+    // max_degree_heap: Heap<MaxItem>,
 
     // /// Current out-degree of each vertex
-    current_out_degree: Vec<usize>,
+    // current_out_degree: Vec<usize>,
 
     // /// Current in-degree of each vertex
-    current_in_degree: Vec<usize>,
+    // current_in_degree: Vec<usize>,
 
     // /// H
-    sink_source_buffer: Vec<u32>,
+    // sink_source_buffer: Vec<u32>,
 
-    sinks_or_sources: RangeSet,
+    // sinks_or_sources: RangeSet,
 
     // test
     deleted_vertices: Vec<bool>,
@@ -53,15 +52,15 @@ impl Graph {
         let rev_adj = vec![Vec::new(); vertices];
         Graph {
             active_vertices,
-            num_active_vertices,
+            // num_active_vertices,
             coloring,
             adj,
             rev_adj,
-            max_degree_heap: Heap::new(0),
-            current_out_degree: vec![0; vertices],
-            current_in_degree: vec![0; vertices],
-            sink_source_buffer: Vec::new(),
-            sinks_or_sources: RangeSet::new(vertices),
+            // max_degree_heap: Heap::new(0),
+            // current_out_degree: vec![0; vertices],
+            // current_in_degree: vec![0; vertices],
+            // sink_source_buffer: Vec::new(),
+            // sinks_or_sources: RangeSet::new(vertices),
             deleted_vertices: vec![false; vertices],
         }
     }
@@ -114,7 +113,7 @@ impl Graph {
         for vertex in &targets {
             self.rev_adj[*vertex as usize].push(source);
         }
-        self.current_out_degree[source as usize] = targets.len();
+        // self.current_out_degree[source as usize] = targets.len();
         self.adj[source as usize] = targets;
     }
 
@@ -345,6 +344,150 @@ impl Graph {
         max_vertex as u32
     }
 
+    fn strong_connect(
+        &self,
+        vertex: usize,
+        stack: &mut Vec<usize>,
+        index_vec: &mut Vec<i32>,
+        index: &mut i32,
+        low: &mut Vec<i32>,
+        comp: &mut Vec<i32>,
+        components: &mut i32,
+    ) {
+        index_vec[vertex] += *index;
+        *index += 1;
+        low[vertex] = index_vec[vertex];
+        stack.push(vertex);
+
+        for next in &self.adj[vertex] {
+            if index_vec[*next as usize] == -1 {
+                self.strong_connect(
+                    *next as usize,
+                    stack,
+                    index_vec,
+                    index,
+                    low,
+                    comp,
+                    components,
+                );
+                low[vertex] = std::cmp::min(low[vertex], low[*next as usize]);
+            } else if comp[*next as usize] == -1 {
+                low[vertex] = std::cmp::min(low[vertex], low[*next as usize]);
+            }
+        }
+
+        if index_vec[vertex] == low[vertex] {
+            while let Some(prev) = stack.pop() {
+                comp[prev] = *components;
+                if prev == vertex {
+                    break;
+                }
+            }
+            *components += 1;
+        }
+    }
+
+    pub fn tarjan(&self) -> Option<Vec<Vec<u32>>> {
+        let mut index_vec = vec![-1; self.total_vertices()];
+        let mut index = 0;
+        let mut low = vec![0; self.total_vertices()];
+        let mut comp = vec![-1; self.total_vertices()];
+        let mut stack = Vec::new();
+        let mut components = 0;
+
+        let mut modified = false;
+        for vertex in 0..self.total_vertices() {
+            if index_vec[vertex] == -1 && !self.deleted_vertices[vertex] {
+                modified = true;
+                self.strong_connect(
+                    vertex,
+                    &mut stack,
+                    &mut index_vec,
+                    &mut index,
+                    &mut low,
+                    &mut comp,
+                    &mut components,
+                )
+            }
+        }
+
+        if modified {
+            let mut partition = vec![Vec::new(); components as usize];
+            for vertex in 0..self.total_vertices() {
+                if self.deleted_vertices[vertex] {
+                    continue;
+                }
+                partition[comp[vertex] as usize].push(vertex as u32);
+            }
+            Some(partition)
+        } else {
+            None
+        }
+    }
+
+    fn scc_reduction(&mut self) -> bool {
+        let res = self.tarjan();
+        if res == None {
+            return false;
+        }
+
+        // only 1 SSC => no point in continuing the reduction
+        let components = res.unwrap();
+        if components.len() == 1 {
+            return false;
+        }
+
+        let mut result = false;
+        for component in &components {
+            if component.len() == 1 {
+                // TODO possibly optimize
+                result = true;
+                self.remove_vertex(component[0]);
+            }
+        }
+
+        // compute the induced graph by parts of the strongly connected components
+        // SCCs may share edges, but they're irrelevant
+        let mut removed_edges = false;
+        for component in components {
+            if component.len() == 1 {
+                continue;
+            }
+
+            // TODO possibly optimize
+            for vertex in &component {
+                let mut new_adj = Vec::new();
+                for j in 0..self.adj[*vertex as usize].len() {
+                    let neighbor = self.adj[*vertex as usize][j];
+                    if component.contains(&neighbor) {
+                        new_adj.push(neighbor);
+                    } else {
+                        // we found a neighbor not beloning to the component
+                        // we remove at least one edge from the graph
+                        removed_edges = true;
+                    }
+                }
+                self.adj[*vertex as usize] = new_adj;
+            }
+        }
+
+        // only change the reverse adjacency list if actual progress has been
+        // made
+        if removed_edges {
+            // rebuild reverse adj
+            self.rev_adj = vec![Vec::new(); self.total_vertices()];
+            for i in 0..self.adj.len() {
+                for j in 0..self.adj[i].len() {
+                    let target = self.adj[i][j];
+                    if let Err(index) = self.rev_adj[target as usize].binary_search(&(i as u32)) {
+                        self.rev_adj[target as usize].insert(index, i as u32);
+                    }
+                }
+            }
+        }
+        result || removed_edges
+    }
+
     fn has_self_loop(&self) -> bool {
         for i in 0..self.adj.len() {
             if self.adj[i].contains(&(i as u32)) {
@@ -516,7 +659,7 @@ impl Graph {
             }
         }
 
-        if has_twins || true {
+        if has_twins {
             for (_, twins) in classes {
                 // efficiently remove a whole lot of vertices
                 for vertex in twins {
@@ -539,10 +682,13 @@ impl Reducable for Graph {
         let mut forced = Vec::new();
         while reduced {
             reduced = false;
-            if self.has_sink_or_source() {
-                self.sink_or_source_reduction();
+            // if self.has_sink_or_source() {
+            //     self.sink_or_source_reduction();
+            //     reduced = true;
+            //     continue;
+            // }
+            if self.scc_reduction() {
                 reduced = true;
-                continue;
             }
             if self.has_single_outgoing() {
                 self.single_outgoing_reduction();
@@ -604,7 +750,6 @@ mod tests {
         graph.add_arc(3, 0);
         graph
     }
-
 
     #[test]
     fn is_cyclic_test_001() {
@@ -674,5 +819,45 @@ mod tests {
         graph.add_arc(0, 1);
         graph.add_arc(1, 0);
         graph.reduce();
+    }
+
+    #[test]
+    fn scc_test_001() {
+        let mut graph = Graph::new(3);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 0);
+        graph.add_arc(0, 2);
+        let components = graph.tarjan().unwrap();
+        assert_eq!(components.len(), 2);
+    }
+
+    #[test]
+    fn scc_test_002() {
+        let mut graph = Graph::new(3);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 0);
+        graph.add_arc(0, 2);
+        graph.add_arc(2, 0);
+        let components = graph.tarjan().unwrap();
+        assert_eq!(components.len(), 1);
+    }
+
+    #[test]
+    fn ssc_reduction_test_001() {
+        let mut graph = Graph::new(4);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 0);
+        graph.add_arc(1, 2);
+        graph.add_arc(2, 3);
+        graph.add_arc(3, 2);
+        graph.scc_reduction();
+
+        let mut expected = Graph::new(4);
+        expected.add_arc(0, 1);
+        expected.add_arc(1, 0);
+        expected.add_arc(2, 3);
+        expected.add_arc(3, 2);
+
+        assert_eq!(graph, expected);
     }
 }
