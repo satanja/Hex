@@ -1,5 +1,5 @@
 use crate::{
-    graph::{Graph, Reducable},
+    graph::{Graph, HeuristicReduce},
     util::RangeSet,
 };
 use std::collections::HashSet;
@@ -38,13 +38,15 @@ pub fn make_minimal(graph: &mut Graph, solution: Vec<u32>) -> Vec<u32> {
 pub fn greedy_and_reduce(graph: &Graph) -> Vec<u32> {
     let mut copy = graph.clone();
     let mut solution = Vec::new();
-    solution.append(&mut copy.reduce(copy.total_vertices()));
+    // use a different set of reduction rules because they perform better 
+    // with the heuristic
+    solution.append(&mut copy.reduce());
 
     while copy.is_cyclic() {
         let v = copy.max_degree_vertex();
         copy.remove_vertex(v);
         solution.push(v);
-        solution.append(&mut copy.reduce(copy.total_vertices()));
+        solution.append(&mut copy.reduce());
     }
     
     let p = make_minimal(&mut graph.clone(), solution);

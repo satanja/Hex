@@ -790,6 +790,48 @@ impl Reducable for Graph {
     }
 }
 
+pub trait HeuristicReduce {
+    fn reduce(&mut self) -> Vec<u32>;
+}
+
+impl HeuristicReduce for Graph {
+    fn reduce(&mut self) -> Vec<u32> {
+        let mut reduced = true;
+        let mut forced = Vec::new();
+        while reduced {
+            reduced = false;
+            if self.scc_reduction() {
+                reduced = true;
+            }
+
+            if self.has_empty_vertex() {
+                self.empty_vertices();
+                reduced = true;
+            }
+
+            if self.has_single_outgoing() {
+                self.single_outgoing_reduction();
+                reduced = true;
+                continue;
+            }
+            if self.has_single_incoming() {
+                self.single_incoming_reduction();
+                reduced = true;
+                continue;
+            }
+
+            if self.has_self_loop() {
+                let mut self_loops = self.self_loop_reduction();
+                reduced = true;
+                forced.append(&mut self_loops);
+                continue;
+            }
+
+        }
+        forced
+    }
+}
+
 impl fmt::Display for Graph {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} 0 0\n", self.total_vertices())?;
@@ -813,7 +855,8 @@ impl fmt::Display for Graph {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::Graph;
+    use super::Reducable;
 
     fn pace_example_graph() -> Graph {
         let mut graph = Graph::new(4);
