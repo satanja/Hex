@@ -693,6 +693,7 @@ impl Graph {
         }
         let (v, neighbours) = stars.last().unwrap();
         if neighbours.len() > parameter {
+            self.remove_vertex(*v);
             return Some(*v);
         }
         return None;
