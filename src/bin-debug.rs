@@ -25,6 +25,7 @@ fn main() {
     for path in paths {
         let pb = path.unwrap().path();
         let mut graph = io::read_from_path(pb).unwrap();
-        println!("{}", heur::greedy_and_reduce(&graph).len());
+        graph.reduce(graph.total_vertices());
+        println!("{}", graph.stars().len());
     }
 }

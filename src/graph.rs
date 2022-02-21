@@ -1,7 +1,6 @@
-use core::fmt;
-use std::collections::{BTreeMap, HashSet};
-use fxhash::{FxHashSet, FxHashMap};
 use crate::util;
+use core::fmt;
+use fxhash::{FxHashMap, FxHashSet};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Graph {
@@ -646,7 +645,7 @@ impl Graph {
     fn has_empty_vertex(&self) -> bool {
         for i in 0..self.adj.len() {
             if self.adj[i].len() == 0 && self.rev_adj[i].len() == 0 && !self.deleted_vertices[i] {
-                return true
+                return true;
             }
         }
         false
@@ -658,6 +657,45 @@ impl Graph {
                 self.deleted_vertices[i] = true;
             }
         }
+    }
+
+    /// Finds vertices contained in a 2-cycle and all its neighbors that are
+    /// included in the 2-cycles
+    pub fn stars(&self) -> Vec<(u32, Vec<u32>)> {
+        let mut count = vec![Vec::new(); self.total_vertices()];
+        for i in 0..self.total_vertices() {
+            if self.deleted_vertices[i] {
+                continue;
+            }
+            for j in 0..self.adj[i].len() {
+                let t = self.adj[i][j];
+                debug_assert!(!self.deleted_vertices[t as usize]);
+                if self.adj[t as usize].contains(&(i as u32)) {
+                    count[i].push(t);
+                }
+            }
+        }
+        let mut stars = Vec::new();
+        for i in 0..count.len() {
+            if count[i].len() != 0 {
+                let neighborhood = std::mem::take(&mut count[i]);
+                stars.push((i as u32, neighborhood));
+            }
+        }
+        stars.sort_by(|(_, a), (_, b)| a.len().cmp(&b.len()));
+        stars
+    }
+
+    fn star_reduction(&mut self, parameter: usize) -> Option<u32> {
+        let stars = self.stars();
+        if stars.len() == 0 {
+            return None;
+        }
+        let (v, neighbours) = stars.last().unwrap();
+        if neighbours.len() > parameter {
+            return Some(*v);
+        }
+        return None;
     }
 
     fn twin_reduction(&mut self) -> Vec<u32> {
@@ -697,11 +735,11 @@ impl Graph {
 }
 
 pub trait Reducable {
-    fn reduce(&mut self) -> Vec<u32>;
+    fn reduce(&mut self, upper_bound: usize) -> Vec<u32>;
 }
 
 impl Reducable for Graph {
-    fn reduce(&mut self) -> Vec<u32> {
+    fn reduce(&mut self, mut upper_bound: usize) -> Vec<u32> {
         let mut reduced = true;
         let mut forced = Vec::new();
         while reduced {
@@ -725,16 +763,27 @@ impl Reducable for Graph {
                 reduced = true;
                 continue;
             }
+
+            upper_bound = std::cmp::min(upper_bound, self.vertices());
+
             if self.has_self_loop() {
-                forced.append(&mut self.self_loop_reduction());
+                let mut self_loops = self.self_loop_reduction();
                 reduced = true;
+                upper_bound -= self_loops.len();
+                forced.append(&mut self_loops);
                 continue;
             }
 
             let mut twins = self.twin_reduction();
             if twins.len() != 0 {
                 reduced = true;
+                upper_bound -= twins.len();
                 forced.append(&mut twins);
+            }
+
+            if let Some(vertex) = self.star_reduction(upper_bound) {
+                upper_bound -= 1;
+                forced.push(vertex);
             }
         }
         forced
@@ -843,7 +892,7 @@ mod tests {
         let mut graph = Graph::new(2);
         graph.add_arc(0, 1);
         graph.add_arc(1, 0);
-        graph.reduce();
+        graph.reduce(2);
     }
 
     #[test]

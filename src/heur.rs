@@ -38,13 +38,13 @@ pub fn make_minimal(graph: &mut Graph, solution: Vec<u32>) -> Vec<u32> {
 pub fn greedy_and_reduce(graph: &Graph) -> Vec<u32> {
     let mut copy = graph.clone();
     let mut solution = Vec::new();
-    solution.append(&mut copy.reduce());
+    solution.append(&mut copy.reduce(copy.total_vertices()));
 
     while copy.is_cyclic() {
         let v = copy.max_degree_vertex();
         copy.remove_vertex(v);
         solution.push(v);
-        solution.append(&mut copy.reduce());
+        solution.append(&mut copy.reduce(copy.total_vertices()));
     }
     
     let p = make_minimal(&mut graph.clone(), solution);
