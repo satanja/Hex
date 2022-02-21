@@ -87,10 +87,10 @@ impl Graph {
         }
     }
 
-    fn remove_vertices(&mut self, vertices: Vec<u32>) {
+    fn remove_vertices(&mut self, vertices: &Vec<u32>) {
         let mut affected_vertices_forward = FxHashSet::default();
         let mut affected_vertices_back = FxHashSet::default();
-        for singleton in &vertices {
+        for singleton in vertices {
             for target in &self.adj[*singleton as usize] {
                 affected_vertices_forward.insert(*target);
             }
@@ -101,21 +101,21 @@ impl Graph {
         for vertex in affected_vertices_forward {
             // u -> vertex, where u in vertices, so look at reverse adjacency list
             let list = std::mem::take(&mut self.rev_adj[vertex as usize]);
-            let reduced = util::algorithms::difference(&list, &vertices);
+            let reduced = util::algorithms::difference(&list, vertices);
             self.rev_adj[vertex as usize] = reduced;
         }
 
         for vertex in affected_vertices_back {
             // vertex -> u, where u in vertices, so look at the forward adjacency list
             let list = std::mem::take(&mut self.adj[vertex as usize]);
-            let reduced = util::algorithms::difference(&list, &vertices);
+            let reduced = util::algorithms::difference(&list, vertices);
             self.adj[vertex as usize] = reduced;
         }
 
         for vertex in vertices {
-            self.adj[vertex as usize].clear();
-            self.rev_adj[vertex as usize].clear();
-            self.deleted_vertices[vertex as usize] = true;
+            self.adj[*vertex as usize].clear();
+            self.rev_adj[*vertex as usize].clear();
+            self.deleted_vertices[*vertex as usize] = true;
         }
     }
 
@@ -171,6 +171,12 @@ impl Graph {
             }
         }
         true
+    }
+
+    pub fn lower_bound(&self) -> usize {
+        let stars = self.stars();
+        debug_assert!(stars.len() % 2 == 0);
+        stars.len() / 2
     }
 
     // pub fn num_active_vertices(&self) -> usize {
@@ -482,7 +488,7 @@ impl Graph {
             }
         }
         singletons.sort();
-        self.remove_vertices(singletons);
+        self.remove_vertices(&singletons);
 
         // compute the induced graph by parts of the strongly connected components
         // SCCs may share edges, but they're irrelevant
@@ -723,12 +729,9 @@ impl Graph {
         }
 
         if has_twins {
-            for (_, twins) in classes {
-                // efficiently remove a whole lot of vertices
-                for vertex in twins {
-                    self.remove_vertex(vertex);
-                    forced.push(vertex);
-                }
+            for (_, mut twins) in classes {
+                self.remove_vertices(&twins);
+                forced.append(&mut twins);
             }
         }
         forced
@@ -783,6 +786,7 @@ impl Reducable for Graph {
             }
 
             if let Some(vertex) = self.star_reduction(upper_bound) {
+                reduced = true;
                 upper_bound -= 1;
                 forced.push(vertex);
             }
@@ -827,7 +831,6 @@ impl HeuristicReduce for Graph {
                 forced.append(&mut self_loops);
                 continue;
             }
-
         }
         forced
     }
