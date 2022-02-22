@@ -327,11 +327,12 @@ impl Graph {
         false
     }
 
-    /// Given a set `fvs` of vertices to delete, returns `true` if the
-    /// remainder has a cycle somewhere. Simple DFS implementation based on
+    /// Given a set `fvs` of vertices to delete, returns `false` if the
+    /// remainder has a cycle somewhere, returns true otherwise.
+    ///  Simple DFS implementation based on
     /// computing a topological ordering. The graph may consist of several
     /// connected components.
-    pub fn has_cycle_with_fvs(&self, fvs: &Vec<u32>) -> bool {
+    pub fn is_acyclic_with_fvs(&self, fvs: &Vec<u32>) -> bool {
         // keep track of which vertices have been exhaustively visited
         let mut coloring: Vec<_> = vec![Color::Unvisited; self.total_vertices()];
         for vertex in fvs {
@@ -345,13 +346,13 @@ impl Graph {
             match coloring[i] {
                 Color::Unvisited => {
                     if self.visit(i, &mut coloring) {
-                        return true;
+                        return false;
                     }
                 }
                 _ => {}
             }
         }
-        false
+        true
     }
 
     // Can be optimized using a heap. Each time a vertex is disabled, we can
@@ -900,42 +901,42 @@ mod tests {
     fn has_fvs_cycle_test_001() {
         let graph = pace_example_graph();
         let fvs = vec![];
-        assert_eq!(graph.has_cycle_with_fvs(&fvs), true);
+        assert_eq!(graph.is_acyclic_with_fvs(&fvs), true);
     }
 
     #[test]
     fn has_fvs_cycle_test_002() {
         let graph = pace_example_graph();
         let fvs = vec![1];
-        assert_eq!(graph.has_cycle_with_fvs(&fvs), true);
+        assert_eq!(graph.is_acyclic_with_fvs(&fvs), true);
     }
 
     #[test]
     fn has_fvs_cycle_test_003() {
         let graph = pace_example_graph();
         let fvs = vec![1];
-        assert_eq!(graph.has_cycle_with_fvs(&fvs), true);
+        assert_eq!(graph.is_acyclic_with_fvs(&fvs), true);
     }
 
     #[test]
     fn has_fvs_cycle_test_004() {
         let graph = pace_example_graph();
         let fvs = vec![0];
-        assert_eq!(graph.has_cycle_with_fvs(&fvs), false);
+        assert_eq!(graph.is_acyclic_with_fvs(&fvs), false);
     }
 
     #[test]
     fn has_fvs_cycle_test_005() {
         let graph = pace_example_graph();
         let fvs = vec![2];
-        assert_eq!(graph.has_cycle_with_fvs(&fvs), false);
+        assert_eq!(graph.is_acyclic_with_fvs(&fvs), false);
     }
 
     #[test]
     fn has_fvs_cycle_test_006() {
         let graph = pace_example_graph();
         let fvs = vec![3];
-        assert_eq!(graph.has_cycle_with_fvs(&fvs), false);
+        assert_eq!(graph.is_acyclic_with_fvs(&fvs), false);
     }
 
     #[test]
@@ -984,5 +985,15 @@ mod tests {
         expected.add_arc(3, 2);
 
         assert_eq!(graph, expected);
+    }
+
+    #[test]
+    fn ssc_reduction_test002() {
+        let mut graph = Graph::new(2);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 0);
+        graph.single_incoming_reduction();
+        graph.scc_reduction();
+        assert_eq!(graph.vertices(), 1);
     }
 }

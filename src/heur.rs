@@ -13,9 +13,7 @@ pub fn greedy(graph: &Graph) -> Vec<u32> {
         solution.push(v);
     }
 
-    debug_assert!(!graph.has_cycle_with_fvs(&solution));
     let p = make_minimal(&mut graph.clone(), solution);
-    debug_assert!(!graph.has_cycle_with_fvs(&p));
     p
 }
 
@@ -28,7 +26,6 @@ pub fn make_minimal(graph: &mut Graph, solution: Vec<u32>) -> Vec<u32> {
         graph.disable_vertex_post(*vertex);
     }
 
-    debug_assert!(!graph.is_cyclic());
     for vertex in solution {
         graph.enable_vertex_post(vertex);
         if graph.is_cyclic() {
@@ -37,8 +34,6 @@ pub fn make_minimal(graph: &mut Graph, solution: Vec<u32>) -> Vec<u32> {
             set.remove(&vertex);
         }
     }
-    debug_assert!(!graph.is_cyclic());
-
     set.into_iter().collect()
 }
 
@@ -56,9 +51,8 @@ pub fn greedy_and_reduce(graph: &Graph) -> Vec<u32> {
         solution.append(&mut copy.reduce());
     }
     
-    debug_assert!(!graph.has_cycle_with_fvs(&solution));
+    // debug_assert!(!graph.has_cycle_with_fvs(&solution));
     let p = make_minimal(&mut graph.clone(), solution);
-    println!("{}", p.len());
-    debug_assert!(!graph.has_cycle_with_fvs(&p));
+    debug_assert!(graph.is_acyclic_with_fvs(&p));
     p
 }
