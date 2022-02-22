@@ -261,7 +261,7 @@ impl Graph {
     }
 
     pub fn enable_vertex_post(&mut self, vertex: u32) {
-        self.deleted_vertices[vertex as usize] = true;
+        self.deleted_vertices[vertex as usize] = false;
         self.coloring[vertex as usize] = Color::Unvisited;
     }
 
@@ -483,8 +483,12 @@ impl Graph {
         let mut singletons = Vec::new();
         for component in &components {
             if component.len() == 1 {
-                result = true;
-                singletons.push(component[0]);
+                let vertex = component[0];
+                // may incorrectly pick up self loops
+                if !self.adj[vertex as usize].contains(&vertex) {
+                    result = true;
+                    singletons.push(component[0]);
+                }
             }
         }
         singletons.sort();
@@ -492,44 +496,44 @@ impl Graph {
 
         // compute the induced graph by parts of the strongly connected components
         // SCCs may share edges, but they're irrelevant
-        let mut removed_edges = false;
-        for component in components {
-            if component.len() == 1 {
-                continue;
-            }
+        // let mut removed_edges = false;
+        // for component in components {
+        //     if component.len() == 1 {
+        //         continue;
+        //     }
 
-            // TODO possibly optimize
-            for vertex in &component {
-                let mut new_adj = Vec::new();
-                for j in 0..self.adj[*vertex as usize].len() {
-                    let neighbor = self.adj[*vertex as usize][j];
-                    if component.contains(&neighbor) {
-                        new_adj.push(neighbor);
-                    } else {
-                        // we found a neighbor not beloning to the component
-                        // we remove at least one edge from the graph
-                        removed_edges = true;
-                    }
-                }
-                self.adj[*vertex as usize] = new_adj;
-            }
-        }
+        //     // TODO possibly optimize
+        //     for vertex in &component {
+        //         let mut new_adj = Vec::new();
+        //         for j in 0..self.adj[*vertex as usize].len() {
+        //             let neighbor = self.adj[*vertex as usize][j];
+        //             if component.contains(&neighbor) {
+        //                 new_adj.push(neighbor);
+        //             } else {
+        //                 // we found a neighbor not beloning to the component
+        //                 // we remove at least one edge from the graph
+        //                 removed_edges = true;
+        //             }
+        //         }
+        //         self.adj[*vertex as usize] = new_adj;
+        //     }
+        // }
 
-        // only change the reverse adjacency list if actual progress has been
-        // made
-        if removed_edges {
-            // rebuild reverse adj
-            self.rev_adj = vec![Vec::new(); self.total_vertices()];
-            for i in 0..self.adj.len() {
-                for j in 0..self.adj[i].len() {
-                    let target = self.adj[i][j];
-                    if let Err(index) = self.rev_adj[target as usize].binary_search(&(i as u32)) {
-                        self.rev_adj[target as usize].insert(index, i as u32);
-                    }
-                }
-            }
-        }
-        result || removed_edges
+        // // only change the reverse adjacency list if actual progress has been
+        // // made
+        // if removed_edges {
+        //     // rebuild reverse adj
+        //     self.rev_adj = vec![Vec::new(); self.total_vertices()];
+        //     for i in 0..self.adj.len() {
+        //         for j in 0..self.adj[i].len() {
+        //             let target = self.adj[i][j];
+        //             if let Err(index) = self.rev_adj[target as usize].binary_search(&(i as u32)) {
+        //                 self.rev_adj[target as usize].insert(index, i as u32);
+        //             }
+        //         }
+        //     }
+        // }
+        result
     }
 
     fn has_self_loop(&self) -> bool {

@@ -20,13 +20,10 @@ use crate::exact::branch_and_bound;
 use graph::Reducable;
 
 fn main() {
-    let args: Vec<_> = env::args().collect();
     let paths = fs::read_dir("./instances/").unwrap();
     for path in paths {
         let pb = path.unwrap().path();
         let mut graph = io::read_from_path(pb).unwrap();
-        // let up = heur::greedy_and_reduce(&graph);
-        graph.reduce(graph.total_vertices());
-        println!("{}", graph.vertices());
+        heur::greedy_and_reduce(&graph);
     }
 }
