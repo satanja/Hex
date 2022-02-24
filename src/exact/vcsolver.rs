@@ -9,12 +9,12 @@ fn extract_vc_solution(output: Output, solution: &mut Vec<u32>) {
 
         let mut first = true;
         for result in string.lines() {
-            if first {
+            if !first {
+                let vertex = result.parse::<u32>().unwrap() - 1;
+                solution.push(vertex);
+            } else {
                 first = false;
-                continue;
             }
-            let vertex = result.parse::<u32>().unwrap() - 1;
-            solution.push(vertex);
         }
     }
 }

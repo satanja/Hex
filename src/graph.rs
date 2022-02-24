@@ -889,18 +889,15 @@ impl Undirected for Graph {
         let edges = directed_edges / 2;
 
         write!(writer, "p td {} {}\n", self.total_vertices(), edges).unwrap();
-        let mut count = 0;
         for i in 0..self.adj.len() {
             for j in 0..self.adj[i].len() {
                 let u = self.adj[i][j];
                 if i < u as usize {
-                    count += 1;
                     write!(writer, "{} {}\n", i + 1, u + 1).unwrap();
                 }
             }
         }
         writer.flush().unwrap();
-        drop(writer);
     }
 }
 
