@@ -3,7 +3,7 @@ use io::Result;
 use std::{
     fs::File,
     io::{self, BufRead, BufReader},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 pub fn read() -> Result<Graph> {
@@ -50,7 +50,7 @@ pub fn read() -> Result<Graph> {
     Ok(graph)
 }
 
-pub fn read_from_path(path: PathBuf) -> Result<Graph> {
+pub fn read_from_path(path: &PathBuf) -> Result<Graph> {
     let mut line = String::new();
     let file = File::open(path).unwrap();
     let mut reader = BufReader::new(file);

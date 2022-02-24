@@ -1,6 +1,10 @@
 use crate::util;
 use core::fmt;
 use fxhash::{FxHashMap, FxHashSet};
+use std::{
+    io::{BufWriter, Write},
+    process::ChildStdin,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Graph {
@@ -859,6 +863,44 @@ impl fmt::Display for Graph {
             write!(f, "\n")?;
         }
         Ok(())
+    }
+}
+pub trait Undirected {
+    fn is_undirected(&self) -> bool;
+    fn write_to_stdin(&self, stdin: ChildStdin);
+}
+
+impl Undirected for Graph {
+    fn is_undirected(&self) -> bool {
+        for i in 0..self.adj.len() {
+            for j in 0..self.adj[i].len() {
+                let u = self.adj[i][j];
+                if !self.rev_adj[i].contains(&u) {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
+    fn write_to_stdin(&self, stdin: ChildStdin) {
+        let mut writer = BufWriter::new(stdin);
+        let directed_edges = self.adj.iter().fold(0, |x, list| x + list.len());
+        let edges = directed_edges / 2;
+
+        write!(writer, "p td {} {}\n", self.total_vertices(), edges).unwrap();
+        let mut count = 0;
+        for i in 0..self.adj.len() {
+            for j in 0..self.adj[i].len() {
+                let u = self.adj[i][j];
+                if i < u as usize {
+                    count += 1;
+                    write!(writer, "{} {}\n", i + 1, u + 1).unwrap();
+                }
+            }
+        }
+        writer.flush().unwrap();
+        drop(writer);
     }
 }
 
