@@ -16,6 +16,7 @@ fn main() {
     let paths = fs::read_dir("./instances/").unwrap();
     for path in paths {
         let pb = path.unwrap().path();
+        println!("{:?}", pb.file_name().unwrap());
         let graph = io::read_from_path(&pb).unwrap();
         let solution = exact::solve(graph);
         println!("{}", solution.len());
