@@ -1,7 +1,7 @@
 use crate::graph::{Graph, HeuristicReduce, Undirected};
 
 mod vcsolver;
-mod vcilp;
+mod vc_ilp;
 
 pub fn branch_and_bound(
     graph: &mut Graph,
@@ -58,7 +58,7 @@ pub fn solve(mut graph: Graph) -> Vec<u32> {
     }
 
     if graph.is_undirected() {
-        vcilp::solve(&graph)
+        vc_ilp::solve(&graph)
     } else {
         Vec::new()
     }
