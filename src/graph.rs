@@ -901,8 +901,48 @@ impl Undirected for Graph {
     }
 }
 
+pub trait EdgeIter {
+    fn undir_edge_iter(&self) -> UndirEdgeIter;
+}
+
+impl EdgeIter for Graph {
+    fn undir_edge_iter(&self) -> UndirEdgeIter {
+        UndirEdgeIter {
+            current_vertex: 0,
+            current_neighbor: 0,
+            graph: &self,
+        }
+    }
+}
+
+pub struct UndirEdgeIter<'a> {
+    current_vertex: usize,
+    current_neighbor: usize,
+    graph: &'a Graph
+}
+
+impl<'a> Iterator for UndirEdgeIter<'a> {
+    type Item = (u32, u32);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for i in self.current_vertex..self.graph.total_vertices() {
+            for j in self.current_neighbor..self.graph.adj[i].len() {
+                let u = self.graph.adj[i][j];
+                if i < u as usize {
+                    self.current_vertex = i;
+                    self.current_neighbor = j + 1;
+                    return Some((i as u32, u));
+                }
+            }
+            self.current_neighbor = 0;
+        }
+        return None;
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::EdgeIter;
     use super::Graph;
     use super::Reducable;
 
@@ -1034,5 +1074,18 @@ mod tests {
         graph.single_incoming_reduction();
         graph.scc_reduction();
         assert_eq!(graph.vertices(), 1);
+    }
+
+    #[test]
+    fn undir_edge_iter_test_001() {
+        let mut graph = Graph::new(3);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 0);
+        graph.add_arc(0, 2);
+        graph.add_arc(2, 0);
+        graph.add_arc(1, 2);
+        graph.add_arc(2, 1);
+        let iter = graph.undir_edge_iter();
+        assert_eq!(iter.count(), 3);
     }
 }
