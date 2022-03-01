@@ -61,13 +61,12 @@ pub fn solve(mut graph: Graph) -> Vec<u32> {
 
     if graph.is_undirected() {
         println!("undirected");
-        let lb = lower::lower_bound(&graph);
-        // let mut reduced_solution = vc_ilp::solve(&graph);
-        // solution.append(&mut reduced_solution);
+        let mut reduced_solution = vc_ilp::solve(&graph);
+        solution.append(&mut reduced_solution);
     } else {
         println!("directed");
-        // let mut reduced_solution = cycle_ilp::solve(&graph, 10);
-        // solution.append(&mut reduced_solution);
+        let mut reduced_solution = cycle_ilp::solve(&graph, 10);
+        solution.append(&mut reduced_solution);
     }
 
     solution
