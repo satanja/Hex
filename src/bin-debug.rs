@@ -8,15 +8,22 @@ mod exact;
 mod graph;
 mod heur;
 mod io;
+mod lower;
 mod util;
 
-use std::fs;
+use std::{fs, path::PathBuf, str::FromStr};
 
 fn main() {
     let paths = fs::read_dir("./instances/").unwrap();
-    for path in paths {
-        let pb = path.unwrap().path();
-        println!("{:?}", pb.file_name().unwrap());
+    let mut file_names: Vec<_> = paths
+        .into_iter()
+        .map(|p| p.unwrap().path().display().to_string())
+        .collect();
+    file_names.sort();
+
+    for path in file_names {
+        println!("{:?}", path);
+        let pb = PathBuf::from_str(&path).unwrap();
         let graph = io::read_from_path(&pb).unwrap();
         let solution = exact::solve(graph);
         println!("{}", solution.len());

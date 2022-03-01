@@ -5,11 +5,11 @@ mod exact;
 mod graph;
 mod heur;
 mod io;
+mod lower;
 mod util;
 
-use graph::Reducable;
-
 fn main() {
-    let mut graph = io::read().unwrap();
-    graph.reduce(graph.total_vertices());
+    let graph = io::read().unwrap();
+    let solution = exact::solve(graph);
+    io::write(solution);
 }

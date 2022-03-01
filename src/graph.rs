@@ -2,7 +2,6 @@ use crate::util;
 use core::fmt;
 use fxhash::{FxHashMap, FxHashSet};
 use std::{
-    collections::VecDeque,
     io::{BufWriter, Write},
     process::ChildStdin,
 };

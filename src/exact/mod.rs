@@ -1,4 +1,5 @@
 use crate::graph::{Graph, HeuristicReduce, Undirected};
+use crate::lower;
 
 mod cycle_ilp;
 mod vc_ilp;
@@ -59,8 +60,14 @@ pub fn solve(mut graph: Graph) -> Vec<u32> {
     }
 
     if graph.is_undirected() {
-        vc_ilp::solve(&graph)
+        println!("undirected");
+        let mut reduced_solution = vc_ilp::solve(&graph);
+        solution.append(&mut reduced_solution);
     } else {
-        Vec::new()
+        println!("directed");
+        let mut reduced_solution = cycle_ilp::solve(&graph, 10);
+        solution.append(&mut reduced_solution);
     }
+
+    solution
 }
