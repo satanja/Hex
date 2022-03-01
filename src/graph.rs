@@ -630,10 +630,8 @@ impl Graph {
     fn has_single_outgoing(&self) -> bool {
         for i in 0..self.adj.len() {
             let list = &self.adj[i];
-            if list.len() == 1 && !self.deleted_vertices[i] {
-                if list[0] != i as u32 {
-                    return true;
-                }
+            if list.len() == 1 && !self.deleted_vertices[i] && list[0] != i as u32 {
+                return true;
             }
         }
         return false;
@@ -642,10 +640,8 @@ impl Graph {
     fn has_single_incoming(&self) -> bool {
         for i in 0..self.rev_adj.len() {
             let list = &self.rev_adj[i];
-            if list.len() == 1 && !self.deleted_vertices[i] {
-                if list[0] != i as u32 {
-                    return true;
-                }
+            if list.len() == 1 && !self.deleted_vertices[i] && list[0] != i as u32 {
+                return true;
             }
         }
         return false;
@@ -913,7 +909,7 @@ impl HeuristicReduce for Graph {
 
 impl fmt::Display for Graph {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} 0 0\n", self.total_vertices())?;
+        writeln!(f, "{} 0 0", self.total_vertices())?;
         for list in &self.adj {
             let mut first = true;
             for i in 0..list.len() {
@@ -926,7 +922,7 @@ impl fmt::Display for Graph {
                     }
                 }
             }
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
         Ok(())
     }
@@ -954,10 +950,10 @@ impl Undirected for Graph {
         let directed_edges = self.adj.iter().fold(0, |x, list| x + list.len());
         let edges = directed_edges / 2;
 
-        write!(writer, "p td {} {}\n", self.total_vertices(), edges).unwrap();
+        writeln!(writer, "p td {} {}", self.total_vertices(), edges).unwrap();
         let edges = self.undir_edge_iter();
         for (u, v) in edges {
-            write!(writer, "{} {}\n", u + 1, v + 1).unwrap();
+            writeln!(writer, "{} {}", u + 1, v + 1).unwrap();
         }
         writer.flush().unwrap();
     }

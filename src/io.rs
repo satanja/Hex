@@ -25,7 +25,6 @@ pub fn read() -> Result<Graph> {
     line.clear();
 
     let vertices = specs[0];
-    let edges = specs[1];
 
     let mut graph = Graph::new(vertices);
 
@@ -70,7 +69,6 @@ pub fn read_from_path(path: &PathBuf) -> Result<Graph> {
     line.clear();
 
     let vertices = specs[0];
-    let edges = specs[1];
 
     let mut graph = Graph::new(vertices);
 

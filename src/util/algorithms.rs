@@ -15,9 +15,7 @@ pub fn difference(lhs: &Vec<u32>, rhs: &Vec<u32>) -> Vec<u32> {
         } else if lhs[ptr_lhs] < rhs[ptr_rhs] {
             result.push(lhs[ptr_lhs]);
             ptr_lhs += 1;
-        } else
-        /*if lhs[ptr_lhs] > rhs[ptr_rhs]*/
-        {
+        } else {
             ptr_rhs += 1;
         }
     }

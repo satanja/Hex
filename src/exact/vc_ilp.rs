@@ -3,8 +3,8 @@ use crate::graph::{EdgeIter, Graph};
 use coin_cbc::{Model, Sense};
 
 pub fn solve(graph: &Graph) -> Vec<u32> {
+    let _out = shh::stdout();
     let mut model = Model::default();
-    model.set_parameter("log", "0");
     // TODO possible optimization flags
 
     let mut vars = Vec::with_capacity(graph.total_vertices());

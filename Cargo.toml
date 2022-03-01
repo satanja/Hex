@@ -10,6 +10,7 @@ default-run = "dfvstritus"
 [dependencies]
 fxhash = "0.2.1"
 coin_cbc = "0.1.6"
+shh = "1.0.1"
 
 [profile.release]
 lto = true

@@ -2,9 +2,8 @@ use crate::graph::Graph;
 use coin_cbc::{Col, Model, Sense, Solution};
 
 pub fn solve(graph: &Graph, init_cycles: usize) -> Vec<u32> {
+    let _out = shh::stdout();
     let mut model = Model::default();
-    model.set_parameter("log", "0");
-    model.set_parameter("slog", "0");
 
     let mut vars = Vec::with_capacity(graph.total_vertices());
     for _ in 0..graph.total_vertices() {
