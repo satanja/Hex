@@ -366,6 +366,9 @@ impl Graph {
         let mut current_vertex = vertex;
         while current_vertex != dest {
             path.push(current_vertex);
+            if pred[current_vertex as usize] == None {
+                println!("shit");
+            }
             current_vertex = pred[current_vertex as usize].unwrap();
         }
         path.push(dest);
@@ -384,6 +387,12 @@ impl Graph {
 
         while let Some(vertex) = queue.pop_front() {
             for target in &self.adj[vertex] {
+
+                // for sake of completness
+                if *target as usize == vertex {
+                    return Some(vec![vertex as u32]);
+                }
+
                 match coloring[*target as usize] {
                     Color::Exhausted | Color::Visited => {
                         let cycle = Graph::recover_cycle(vertex as u32, *target, &pred);
@@ -1146,14 +1155,14 @@ mod tests {
     }
 
     #[test]
-    fn bfs_cycle_test_001() {
+    fn find_cycle_test_001() {
         let mut graph = Graph::new(2);
         graph.add_arc(0, 1);
         assert_eq!(graph.find_cycle_with_fvs(&vec![]), None);
     }
 
     #[test]
-    fn bfs_cycle_test_002() {
+    fn find_cycle_test_002() {
         let mut graph = Graph::new(2);
         graph.add_arc(0, 1);
         graph.add_arc(1, 0);
@@ -1161,7 +1170,7 @@ mod tests {
     }
 
     #[test]
-    fn bfs_cycle_test_003() {
+    fn find_cycle_test_003() {
         let mut graph = Graph::new(5);
         graph.add_arc(0, 1);
         graph.add_arc(1, 2);
@@ -1173,7 +1182,7 @@ mod tests {
     }
 
     #[test]
-    fn bfs_cycle_test_004() {
+    fn find_cycle_test_004() {
         let mut graph = Graph::new(5);
         graph.add_arc(0, 1);
         graph.add_arc(1, 2);
@@ -1182,5 +1191,14 @@ mod tests {
         graph.add_arc(4, 2);
 
         assert_eq!(graph.find_cycle_with_fvs(&vec![2]), None);
+    }
+
+    #[test]
+    fn find_cycle_test_005() {
+        let mut graph = Graph::new(3);
+        graph.add_arc(0, 1);
+        graph.add_arc(0, 2);
+        graph.add_arc(1, 2);
+        assert_eq!(graph.find_cycle_with_fvs(&vec![]), None);
     }
 }
