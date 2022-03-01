@@ -3,7 +3,7 @@ use crate::lower;
 
 mod cycle_ilp;
 mod vc_ilp;
-mod vcsolver;
+mod vc_solver;
 
 pub fn branch_and_bound(
     graph: &mut Graph,
