@@ -45,7 +45,6 @@ enum Color {
     Unvisited,
     Visited,
     Exhausted,
-    DFVS,
 }
 
 impl Graph {
@@ -376,39 +375,31 @@ impl Graph {
         path
     }
 
-    fn bfs_cycle(
+    fn dfs_find_cycle(
         &self,
         vertex: usize,
         coloring: &mut Vec<Color>,
         pred: &mut Vec<Option<u32>>,
     ) -> Option<Vec<u32>> {
-        let mut queue = VecDeque::new();
-        queue.push_back(vertex);
-
-        while let Some(vertex) = queue.pop_front() {
-            for target in &self.adj[vertex] {
-
-                // for sake of completness
-                if *target as usize == vertex {
-                    return Some(vec![vertex as u32]);
-                }
-
-                match coloring[*target as usize] {
-                    Color::Exhausted | Color::Visited => {
-                        let cycle = Graph::recover_cycle(vertex as u32, *target, &pred);
-                        return Some(cycle);
-                    }
-                    Color::DFVS => {}
-                    Color::Unvisited => {
-                        coloring[*target as usize] = Color::Visited;
-                        pred[*target as usize] = Some(vertex as u32);
-                        queue.push_back(*target as usize);
-                    }
-                }
-            }
-            coloring[vertex] = Color::Exhausted;
+        if coloring[vertex] == Color::Exhausted {
+            return None;
         }
-        None
+
+        coloring[vertex] = Color::Visited;
+
+        for next in &self.adj[vertex] {
+            if coloring[*next as usize] == Color::Visited {
+                return Some(Graph::recover_cycle(vertex as u32, *next, pred));
+            }
+
+            pred[*next as usize] = Some(vertex as u32);
+            if let Some(cycle) = self.dfs_find_cycle(*next as usize, coloring, pred) {
+                return Some(cycle);
+            }
+        }
+
+        coloring[vertex] = Color::Exhausted;
+        return None;
     }
 
     pub fn find_cycle_with_fvs(&self, fvs: &Vec<u32>) -> Option<Vec<u32>> {
@@ -416,7 +407,7 @@ impl Graph {
         let mut pred: Vec<Option<u32>> = vec![None; self.total_vertices()];
 
         for vertex in fvs {
-            coloring[*vertex as usize] = Color::DFVS;
+            coloring[*vertex as usize] = Color::Exhausted;
         }
 
         for i in 0..self.total_vertices() {
@@ -425,7 +416,7 @@ impl Graph {
             }
             match coloring[i] {
                 Color::Unvisited => {
-                    if let Some(cycle) = self.bfs_cycle(i, &mut coloring, &mut pred) {
+                    if let Some(cycle) = self.dfs_find_cycle(i, &mut coloring, &mut pred) {
                         return Some(cycle);
                     }
                 }
