@@ -54,6 +54,7 @@ mod tests {
         let graph = generate_clique(n);
         let solution = solve(&graph);
         assert_eq!(solution.len(), n - 1);
+        assert!(graph.is_acyclic_with_fvs(&solution));
     }
 
     #[test]
@@ -62,6 +63,7 @@ mod tests {
         let graph = generate_clique(n);
         let solution = solve(&graph);
         assert_eq!(solution.len(), n - 1);
+        assert!(graph.is_acyclic_with_fvs(&solution));
     }
 
     #[test]
@@ -70,5 +72,6 @@ mod tests {
         let graph = generate_clique(n);
         let solution = solve(&graph);
         assert_eq!(solution.len(), n - 1);
+        assert!(graph.is_acyclic_with_fvs(&solution));
     }
 }

@@ -1,7 +1,8 @@
 use crate::graph::{Graph, HeuristicReduce, Undirected};
 
-mod vcsolver;
+mod cycle_ilp;
 mod vc_ilp;
+mod vcsolver;
 
 pub fn branch_and_bound(
     graph: &mut Graph,
