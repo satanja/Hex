@@ -12,6 +12,7 @@ mod lower;
 mod util;
 
 use std::{fs, path::PathBuf, str::FromStr};
+use heur::{Heuristic, GRCycle};
 
 fn main() {
     let paths = fs::read_dir("./instances/").unwrap();
@@ -25,7 +26,7 @@ fn main() {
         println!("{:?}", path);
         let pb = PathBuf::from_str(&path).unwrap();
         let graph = io::read_from_path(&pb).unwrap();
-        let solution = exact::solve(graph);
+        let solution = GRCycle::upper_bound(&graph);
         println!("{}", solution.len());
     }
 }
