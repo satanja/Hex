@@ -19,20 +19,29 @@ pub fn branch_and_bound(
     }
 
     // branch on the stars if possible
-    if let Some((vertex, neighbors)) = graph.max_degree_star() {
-        let mut best;
-
+    if let Some((vertex, mut neighbors)) = graph.max_degree_star() {
         let mut first = graph.clone();
         first.remove_vertex(vertex);
-        best = branch_and_bound(&first, current_solution + 1, upper_bound);
+        let a = branch_and_bound(&first, current_solution + 1, upper_bound);
 
         let mut second = graph.clone();
         second.remove_vertices(&neighbors);
-
         let b = branch_and_bound(&second, current_solution + neighbors.len(), upper_bound);
-        best = min_solution(best, b);
 
-        return best;
+        // determine the smallest solution and construct the new solution
+        match min_solution(&a, &b, 1, neighbors.len()) {
+            None => return None,
+            Some(true) => {
+                let mut solution = a.unwrap();
+                solution.push(vertex);
+                return Some(solution);
+            }
+            Some(false) => {
+                let mut solution = a.unwrap();
+                solution.append(&mut neighbors);
+                return Some(solution);
+            }
+        }
     }
 
     // we cannot branch on a star, so branch on a vertex in a cycle
@@ -43,14 +52,26 @@ pub fn branch_and_bound(
         clone.remove_vertex(vertex);
 
         let branch = branch_and_bound(&clone, current_solution + 1, upper_bound);
-        best = min_solution(best, branch);
+        match min_solution(&best, &branch, 1, 1) {
+            None => return None,
+            Some(true) => {
+                let mut solution = best.unwrap();
+                solution.push(vertex);
+                best = Some(solution);
+            }
+            Some(false) => {
+                let mut solution = branch.unwrap();
+                solution.push(vertex);
+                best = Some(solution);
+            }
+        }
     }
     return best;
 }
 
 fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> {
     // first, reduce the graph as much as possible
-    let reduced = graph.reduce(upper_bound);
+    let mut reduced = graph.reduce(upper_bound);
     if !graph.is_cyclic() {
         // `reduced` is an optimal solution (even if empty)
         return Some(reduced);
@@ -63,20 +84,30 @@ fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> 
     }
 
     // branch on the stars if possible
-    if let Some((vertex, neighbors)) = graph.max_degree_star() {
-        let mut best;
-
+    if let Some((vertex, mut neighbors)) = graph.max_degree_star() {
         let mut first = graph.clone();
         first.remove_vertex(vertex);
-        best = branch_and_reduce(&mut first, new_upper - 1);
+        let a = branch_and_reduce(&mut first, new_upper - 1);
 
         let mut second = graph.clone();
         second.remove_vertices(&neighbors);
-
         let b = branch_and_reduce(&mut second, new_upper - neighbors.len());
-        best = min_solution(best, b);
 
-        return merge(best, reduced);
+        match min_solution(&a, &b, 1, neighbors.len()) {
+            None => return None,
+            Some(true) => {
+                let mut solution = a.unwrap();
+                solution.push(vertex);
+                solution.append(&mut reduced);
+                return Some(solution);
+            }
+            Some(false) => {
+                let mut solution = a.unwrap();
+                solution.append(&mut neighbors);
+                solution.append(&mut reduced);
+                return Some(solution);
+            }
+        }
     }
 
     // we cannot branch on a star, so branch on a vertex in a cycle
@@ -87,10 +118,23 @@ fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> 
         clone.remove_vertex(vertex);
 
         let branch = branch_and_reduce(&mut clone, new_upper - 1);
-        best = min_solution(best, branch);
+        match min_solution(&best, &branch, 1, 1) {
+            None => return None,
+            Some(true) => {
+                let mut solution = best.unwrap();
+                solution.push(vertex);
+                best = Some(solution);
+            }
+            Some(false) => {
+                let mut solution = branch.unwrap();
+                solution.push(vertex);
+                best = Some(solution);
+            }
+        }
     }
-
-    merge(best, reduced)
+    let mut solution = best.unwrap();
+    solution.append(&mut reduced);
+    Some(solution)
 }
 
 pub fn solve(graph: &mut Graph) -> Vec<u32> {
@@ -98,29 +142,94 @@ pub fn solve(graph: &mut Graph) -> Vec<u32> {
     branch_and_reduce(graph, ub.len()).unwrap()
 }
 
-/// Returns the smallest solution between `a` and `b`. In case that `b` is `None`, return `a`.
-/// In case `a` is `None` (and `b` is not `None`), return `b`.
-fn min_solution(a: Option<Vec<u32>>, b: Option<Vec<u32>>) -> Option<Vec<u32>> {
+/// Returns whether `a` is a better solution than `b`, given that `delta_a` and `delta_b` vertices still
+/// need to be included in `a` or `b` respectively. Returns `None` when both `a` and `b` are `None`.
+fn min_solution(
+    a: &Option<Vec<u32>>,
+    b: &Option<Vec<u32>>,
+    delta_a: usize,
+    delta_b: usize,
+) -> Option<bool> {
     match (a.as_ref(), b.as_ref()) {
-        (_, None) => a,
-        (None, Some(_)) => b,
+        (None, None) => None,
+        (None, Some(_)) => Some(false),
+        (Some(_), None) => Some(true),
         (Some(list_a), Some(list_b)) => {
-            if list_a.len() >= list_b.len() {
-                b
-            } else {
-                a
-            }
+            let ans = list_a.len() + delta_a <= list_b.len() + delta_b;
+            Some(ans)
         }
     }
 }
 
-/// Combines
-fn merge(best: Option<Vec<u32>>, mut reduced: Vec<u32>) -> Option<Vec<u32>> {
-    match best {
-        None => None,
-        Some(mut solution) => {
-            solution.append(&mut reduced);
-            Some(solution)
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn generate_clique(vertices: usize) -> Graph {
+        let mut graph = Graph::new(vertices);
+        for i in 0..vertices {
+            for j in i + 1..vertices {
+                graph.add_arc(i as u32, j as u32);
+                graph.add_arc(j as u32, i as u32);
+            }
         }
+        graph
     }
+
+    #[test]
+    fn branch_and_bound_test_001() {
+        let n = 3;
+        let graph = generate_clique(n);
+        let solution = branch_and_bound(&graph, 0, n).unwrap();
+        assert_eq!(solution.len(), n - 1);
+        assert!(graph.is_acyclic_with_fvs(&solution));
+    }
+
+    #[test]
+    fn branch_and_bound_test_002() {
+        let n = 4;
+        let graph = generate_clique(n);
+        let solution = branch_and_bound(&graph, 0, n).unwrap();
+        assert_eq!(solution.len(), n - 1);
+        assert!(graph.is_acyclic_with_fvs(&solution));
+    }
+
+
+    #[test]
+    fn branch_and_bound_test_003() {
+        let n = 5;
+        let graph = generate_clique(n);
+        let solution = branch_and_bound(&graph, 0, n).unwrap();
+        assert_eq!(solution.len(), n - 1);
+        assert!(graph.is_acyclic_with_fvs(&solution));
+    }
+
+    #[test]
+    fn branch_and_reduce_test_001() {
+        let n = 3;
+        let mut graph = generate_clique(n);
+        let solution = branch_and_reduce(&mut graph, n).unwrap();
+        assert_eq!(solution.len(), n - 1);
+        assert!(graph.is_acyclic_with_fvs(&solution));
+    }
+
+    #[test]
+    fn branch_and_reduce_test_002() {
+        let n = 4;
+        let mut graph = generate_clique(n);
+        let solution = branch_and_reduce(&mut graph, n).unwrap();
+        assert_eq!(solution.len(), n - 1);
+        assert!(graph.is_acyclic_with_fvs(&solution));
+    }
+
+
+    #[test]
+    fn branch_and_reduce_test_003() {
+        let n = 5;
+        let mut graph = generate_clique(n);
+        let solution = branch_and_reduce(&mut graph, n).unwrap();
+        assert_eq!(solution.len(), n - 1);
+        assert!(graph.is_acyclic_with_fvs(&solution));
+    }
+
 }
