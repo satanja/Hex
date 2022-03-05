@@ -91,7 +91,7 @@ impl Graph {
         }
     }
 
-    fn remove_vertices(&mut self, vertices: &Vec<u32>) {
+    pub fn remove_vertices(&mut self, vertices: &Vec<u32>) {
         let mut affected_vertices_forward = FxHashSet::default();
         let mut affected_vertices_back = FxHashSet::default();
         for singleton in vertices {
@@ -759,8 +759,23 @@ impl Graph {
                 stars.push((i as u32, neighborhood));
             }
         }
-        stars.sort_by(|(_, a), (_, b)| a.len().cmp(&b.len()));
         stars
+    }
+
+    pub fn max_degree_star(&self) -> Option<(u32, Vec<u32>)> {
+        let mut stars = self.stars();
+        if stars.len() == 0 {
+            return None;
+        }
+
+        let mut max = stars.pop().unwrap();
+        for star in stars {
+            if star.1.len() >= max.1.len() {
+                max = star;
+            }
+        }
+
+        Some(max)
     }
 
     fn star_reduction(&mut self, parameter: usize) -> Option<u32> {
