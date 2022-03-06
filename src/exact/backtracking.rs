@@ -71,15 +71,21 @@ pub fn branch_and_bound(
 
 fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> {
     // first, reduce the graph as much as possible
-    let mut reduced = graph.reduce(upper_bound);
+    let reduce_op = graph.reduce(upper_bound);
+    if reduce_op == None {
+        println!("killed: reduction exceeds upper bound");
+        return None;
+    }
+    let mut reduced = reduce_op.unwrap();
+
     if !graph.is_cyclic() {
-        // `reduced` is an optimal solution (even if empty)
+        println!("found solution");
         return Some(reduced);
     }
 
-    let new_upper = upper_bound - reduced.len();
+    let mut new_upper = upper_bound - reduced.len();
     let lb = lower::lower_bound(graph);
-    if reduced.len() + lb > new_upper {
+    if lb > new_upper {
         return None;
     }
 
@@ -89,9 +95,19 @@ fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> 
         first.remove_vertex(vertex);
         let a = branch_and_reduce(&mut first, new_upper - 1);
 
-        let mut second = graph.clone();
-        second.remove_vertices(&neighbors);
-        let b = branch_and_reduce(&mut second, new_upper - neighbors.len());
+        if let Some(list) = a.as_ref() {
+            // the reduced graph can be made acyclic by removing `vertex` and all vertices `list`
+            // set the upper bound to `list.len()` to only find smaller solutions if they exist
+            new_upper = list.len();
+        }
+
+        let b = if neighbors.len() > new_upper {
+            None
+        } else {
+            let mut second = graph.clone();
+            second.remove_vertices(&neighbors);
+            branch_and_reduce(&mut second, new_upper - neighbors.len())
+        };
 
         match min_solution(&a, &b, 1, neighbors.len()) {
             None => return None,
@@ -99,12 +115,14 @@ fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> 
                 let mut solution = a.unwrap();
                 solution.push(vertex);
                 solution.append(&mut reduced);
+                println!("a: {}", solution.len());
                 return Some(solution);
             }
             Some(false) => {
-                let mut solution = a.unwrap();
+                let mut solution = b.unwrap();
                 solution.append(&mut neighbors);
                 solution.append(&mut reduced);
+                println!("b: {}", solution.len());
                 return Some(solution);
             }
         }
@@ -138,8 +156,15 @@ fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> 
 }
 
 pub fn solve(graph: &mut Graph) -> Vec<u32> {
-    let ub = GRMaxDegree::upper_bound(graph);
-    branch_and_reduce(graph, ub.len()).unwrap()
+    let mut solution = graph.reduce(graph.vertices()).unwrap();
+    let components = graph.tarjan(true).unwrap();
+    for component in components {
+        let mut subgraph = graph.induced_subgraph(component);
+        let ub = GRMaxDegree::upper_bound(&subgraph);
+        let mut sub_solution = branch_and_reduce(&mut subgraph, ub.len()).unwrap();
+        solution.append(&mut sub_solution);
+    }
+    solution
 }
 
 /// Returns whether `a` is a better solution than `b`, given that `delta_a` and `delta_b` vertices still
@@ -194,7 +219,6 @@ mod tests {
         assert!(graph.is_acyclic_with_fvs(&solution));
     }
 
-
     #[test]
     fn branch_and_bound_test_003() {
         let n = 5;
@@ -222,7 +246,6 @@ mod tests {
         assert!(graph.is_acyclic_with_fvs(&solution));
     }
 
-
     #[test]
     fn branch_and_reduce_test_003() {
         let n = 5;
@@ -231,5 +254,4 @@ mod tests {
         assert_eq!(solution.len(), n - 1);
         assert!(graph.is_acyclic_with_fvs(&solution));
     }
-
 }

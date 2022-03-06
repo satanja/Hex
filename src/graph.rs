@@ -1,4 +1,4 @@
-use crate::util;
+use crate::util::{self, algorithms::intersection};
 use core::fmt;
 use fxhash::{FxHashMap, FxHashSet};
 use std::{
@@ -500,7 +500,7 @@ impl Graph {
         }
     }
 
-    pub fn tarjan(&self) -> Option<Vec<Vec<u32>>> {
+    pub fn tarjan(&self, always_report: bool) -> Option<Vec<Vec<u32>>> {
         let mut index_vec = vec![-1; self.total_vertices()];
         let mut index = 0;
         let mut low = vec![0; self.total_vertices()];
@@ -508,7 +508,7 @@ impl Graph {
         let mut stack = Vec::new();
         let mut components = 0;
 
-        let mut modified = false;
+        let mut modified = always_report;
         for vertex in 0..self.total_vertices() {
             if index_vec[vertex] == -1 && !self.deleted_vertices[vertex] {
                 modified = true;
@@ -539,7 +539,7 @@ impl Graph {
     }
 
     fn scc_reduction(&mut self) -> bool {
-        let res = self.tarjan();
+        let res = self.tarjan(false);
         if res == None {
             return false;
         }
@@ -822,14 +822,33 @@ impl Graph {
         }
         forced
     }
+
+    pub fn induced_subgraph(&self, mut subset: Vec<u32>) -> Graph {
+        subset.sort();
+        let mut induced = self.clone();
+
+        for i in 0..induced.total_vertices() {
+            if induced.adj[i].len() == 0 {
+                continue;
+            }
+
+            let intersect_adj = intersection(&induced.adj[i], &subset);
+            let intersect_rev_adj = intersection(&induced.rev_adj[i], &subset);
+
+            induced.adj[i] = intersect_adj;
+            induced.rev_adj[i] = intersect_rev_adj;
+        }
+
+        induced
+    }
 }
 
 pub trait Reducable {
-    fn reduce(&mut self, upper_bound: usize) -> Vec<u32>;
+    fn reduce(&mut self, upper_bound: usize) -> Option<Vec<u32>>;
 }
 
 impl Reducable for Graph {
-    fn reduce(&mut self, mut upper_bound: usize) -> Vec<u32> {
+    fn reduce(&mut self, mut upper_bound: usize) -> Option<Vec<u32>> {
         let mut reduced = true;
         let mut forced = Vec::new();
         while reduced {
@@ -858,6 +877,9 @@ impl Reducable for Graph {
 
             if self.has_self_loop() {
                 let mut self_loops = self.self_loop_reduction();
+                if self_loops.len() > upper_bound {
+                    return None;
+                }
                 reduced = true;
                 upper_bound -= self_loops.len();
                 forced.append(&mut self_loops);
@@ -865,6 +887,10 @@ impl Reducable for Graph {
             }
 
             let mut twins = self.twin_reduction();
+            if twins.len() > upper_bound {
+                return None;
+            }
+
             if twins.len() != 0 {
                 reduced = true;
                 upper_bound -= twins.len();
@@ -872,12 +898,15 @@ impl Reducable for Graph {
             }
 
             if let Some(vertex) = self.star_reduction(upper_bound) {
+                if upper_bound == 0 {
+                    return None;
+                }
                 reduced = true;
                 upper_bound -= 1;
                 forced.push(vertex);
             }
         }
-        forced
+        Some(forced)
     }
 }
 
@@ -1098,7 +1127,7 @@ mod tests {
         graph.add_arc(0, 1);
         graph.add_arc(1, 0);
         graph.add_arc(0, 2);
-        let components = graph.tarjan().unwrap();
+        let components = graph.tarjan(false).unwrap();
         assert_eq!(components.len(), 2);
     }
 
@@ -1109,7 +1138,7 @@ mod tests {
         graph.add_arc(1, 0);
         graph.add_arc(0, 2);
         graph.add_arc(2, 0);
-        let components = graph.tarjan().unwrap();
+        let components = graph.tarjan(false).unwrap();
         assert_eq!(components.len(), 1);
     }
 
