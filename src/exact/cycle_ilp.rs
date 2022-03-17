@@ -4,6 +4,7 @@ use coin_cbc::{Col, Model, Sense, Solution};
 pub fn solve(graph: &Graph) -> Vec<u32> {
     let _out = shh::stdout();
     let mut model = Model::default();
+    model.set_parameter("sec", "1800");
     model.set_parameter("log", "0");
 
     let mut vars = Vec::with_capacity(graph.total_vertices());
