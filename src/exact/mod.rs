@@ -14,11 +14,12 @@ pub fn solve(mut graph: Graph) -> Vec<u32> {
     }
 
     if graph.is_undirected() {
-        let mut reduced_solution = vc_ilp::solve(&graph);
-        solution.append(&mut reduced_solution);
+        vc_solver::solve(&graph, &mut solution);
+        // solution.append(&mut reduced_solution);
     } else {
-        let mut reduced_solution = backtracking::solve(&mut graph);
-        solution.append(&mut reduced_solution);
+        return Vec::new();
+        // let mut reduced_solution = cycle_ilp::solve(&mut graph);
+        // solution.append(&mut reduced_solution);
     }
 
     solution
