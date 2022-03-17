@@ -32,7 +32,7 @@ fn extract_vc_solution_from_bytes(bytes: &[u8], solution: &mut Vec<u32>) {
 }
 
 fn run_solver(graph: &Graph, solution: &mut Vec<u32>, time_limit: Duration) -> bool {
-    let mut child = Command::new("./extern/vc_solver")
+    let mut child = Command::new("./extern/WeGotYouCovered/vc_solver")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
@@ -50,7 +50,7 @@ fn run_solver(graph: &Graph, solution: &mut Vec<u32>, time_limit: Duration) -> b
 
     std::thread::sleep(time_limit);
     child.kill().unwrap();
-    
+
     let mut stdout = child.stdout.unwrap();
     let mut buf = Vec::new();
     stdout.read_to_end(&mut buf).unwrap();
