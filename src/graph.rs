@@ -1,6 +1,6 @@
 use crate::util::{self, algorithms::intersection};
 use core::fmt;
-use fxhash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     io::{BufWriter, Write},
     process::ChildStdin,
