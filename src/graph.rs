@@ -425,6 +425,43 @@ impl Graph {
         None
     }
 
+    pub fn find_cycle_from_minimal(&self, minimal: &Vec<u32>) -> Vec<Vec<u32>> {
+        let mut coloring = vec![Color::Unvisited; self.total_vertices()];
+        let mut pred: Vec<Option<u32>> = vec![None; self.total_vertices()];
+
+        for vertex in minimal {
+            coloring[*vertex as usize] = Color::Exhausted;
+        }
+
+        let minimal_set: FxHashSet<_> = minimal.iter().collect();
+
+        let mut cycles = Vec::new();
+        for vertex in minimal {
+            coloring[*vertex as usize] = Color::Unvisited; // G now contains a cycle, and all its cycles contain `vertex`
+
+            let cycle = self
+                .dfs_find_cycle(*vertex as usize, &mut coloring, &mut pred)
+                .unwrap();
+
+
+            cycles.push(cycle);
+
+            for v in 0..coloring.len() {
+                if !minimal_set.contains(&(v as u32)) {
+                    coloring[v] = Color::Unvisited;
+                }
+            }
+            coloring[*vertex as usize] = Color::Exhausted;
+
+            for entry in &mut pred {
+                *entry = None;
+            }
+
+        }
+
+        cycles
+    }
+
     // Can be optimized using a heap. Each time a vertex is disabled, we can
     // update the number of in and outgoing edges.
     pub fn max_degree_vertex(&mut self) -> u32 {

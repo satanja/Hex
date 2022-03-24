@@ -4,6 +4,8 @@ use crate::lower;
 
 mod backtracking;
 mod cycle_ilp;
+mod heur_ilp;
+mod hybrid_ilp;
 mod vc_ilp;
 mod vc_solver;
 
@@ -14,12 +16,20 @@ pub fn solve(mut graph: Graph) -> Vec<u32> {
     }
 
     if graph.is_undirected() {
-        vc_solver::solve(&graph, &mut solution);
-        // solution.append(&mut reduced_solution);
+        // println!("undirected");
+        // vc_solver::solve(&graph, &mut solution);
+        if let Some(mut reduced_solution) = vc_ilp::solve(&graph) {
+            solution.append(&mut reduced_solution);
+        } else {
+            println!("time limit exceeded");
+        }
     } else {
-        return Vec::new();
-        // let mut reduced_solution = cycle_ilp::solve(&mut graph);
-        // solution.append(&mut reduced_solution);
+        // return Vec::new();
+        if let Some(mut reduced_solution) = hybrid_ilp::solve(&graph) {
+            solution.append(&mut reduced_solution);
+        } else {
+            println!("time limit exceeded");
+        }
     }
 
     solution

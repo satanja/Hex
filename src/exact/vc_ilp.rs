@@ -1,11 +1,13 @@
 //! Vertex Cover ILP solver
 use crate::graph::{EdgeIter, Graph};
 use coin_cbc::{Model, Sense};
+use std::time::{Duration, Instant};
 
-pub fn solve(graph: &Graph) -> Vec<u32> {
+pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
+    let start = Instant::now();
     let _out = shh::stdout();
     let mut model = Model::default();
-    model.set_parameter("sec", "1800");
+    model.set_parameter("sec", "450");
     // TODO possible optimization flags
 
     let mut vars = Vec::with_capacity(graph.total_vertices());
@@ -28,10 +30,16 @@ pub fn solve(graph: &Graph) -> Vec<u32> {
     model.set_obj_sense(Sense::Minimize);
     let solution = model.solve();
 
-    (0..vars.len())
-        .filter(|i| solution.col(vars[*i]) >= 0.95)
-        .map(|i| i as u32)
-        .collect()
+    if start.elapsed().as_secs() > 450 {
+        return None;
+    }
+
+    Some(
+        (0..vars.len())
+            .filter(|i| solution.col(vars[*i]) >= 0.95)
+            .map(|i| i as u32)
+            .collect(),
+    )
 }
 
 #[cfg(test)]
@@ -53,7 +61,7 @@ mod tests {
     fn clique_test_001() {
         let n = 3;
         let graph = generate_clique(n);
-        let solution = solve(&graph);
+        let solution = solve(&graph).unwrap();
         assert_eq!(solution.len(), n - 1);
         assert!(graph.is_acyclic_with_fvs(&solution));
     }
@@ -62,7 +70,7 @@ mod tests {
     fn clique_test_002() {
         let n = 4;
         let graph = generate_clique(n);
-        let solution = solve(&graph);
+        let solution = solve(&graph).unwrap();
         assert_eq!(solution.len(), n - 1);
         assert!(graph.is_acyclic_with_fvs(&solution));
     }
@@ -71,7 +79,7 @@ mod tests {
     fn clique_test_003() {
         let n = 5;
         let graph = generate_clique(n);
-        let solution = solve(&graph);
+        let solution = solve(&graph).unwrap();
         assert_eq!(solution.len(), n - 1);
         assert!(graph.is_acyclic_with_fvs(&solution));
     }

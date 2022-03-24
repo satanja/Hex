@@ -65,7 +65,7 @@ impl Heuristic for GRCycle {
 /// Reduces the solution to a minimal solution. Tries to reintroduce a vertex to
 /// the graph, and if the graph is still acyclic, we can continue. Otherwise,
 /// that vertex must be removed from the graph.
-fn make_minimal(graph: &mut Graph, solution: Vec<u32>) -> Vec<u32> {
+pub fn make_minimal(graph: &mut Graph, solution: Vec<u32>) -> Vec<u32> {
     let mut set: HashSet<_> = solution.iter().map(|v| *v).collect();
     for vertex in &solution {
         graph.disable_vertex_post(*vertex);

@@ -1,4 +1,5 @@
-use crate::graph::Graph;
+use crate::{graph::Graph, heur::Heuristic};
+use crate::heur::{GRMaxDegree, make_minimal};
 use coin_cbc::{Col, Model, Sense, Solution};
 use std::time::{Duration, Instant};
 
@@ -15,10 +16,31 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
         vars.push(var);
     }
     model.set_obj_sense(Sense::Minimize);
-
-    let mut dfvs = Vec::new();
+    
     let mut ilp_duration = 0;
+    
+    let mut dfvs = GRMaxDegree::upper_bound(graph);
+    let cycles = graph.find_cycle_from_minimal(&dfvs);
+    for cycle in cycles {
+        let row = model.add_row();
+        model.set_row_lower(row, 1.);
+        for vertex in cycle {
+            model.set_weight(row, vars[vertex as usize], 1.);
+        }
+    }
+
+    let solution = model.solve();
+    recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
+    
+    let elapsed = start.elapsed().as_secs();
+    // println!("{}s", elapsed);
+    // println!("{}", dfvs.len());
+    if elapsed > 450 {
+        return None;
+    }
+
     loop {
+        // println!("{}", dfvs.len());
         let elapsed = start.elapsed().as_secs();
         if elapsed + ilp_duration > 450 {
             println!("{}s", elapsed);
@@ -36,9 +58,20 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
             }
         }
 
-        if !changed {
+        if changed {
+            dfvs = make_minimal(&mut graph.clone(), dfvs);
+            let cycles = graph.find_cycle_from_minimal(&dfvs);
+            for cycle in cycles {
+                let row = model.add_row();
+                model.set_row_lower(row, 1.);
+                for vertex in cycle {
+                    model.set_weight(row, vars[vertex as usize], 1.);
+                }
+            }
+        } else {
             break;
         }
+
 
         let _out = shh::stdout();
 

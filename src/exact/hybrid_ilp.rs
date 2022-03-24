@@ -14,14 +14,36 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
         model.set_obj_coeff(var, 1.);
         vars.push(var);
     }
-    model.set_obj_sense(Sense::Minimize);
 
-    let mut dfvs = Vec::new();
+    let stars = graph.stars();
+    for (u, list) in stars {
+        for v in list {
+            if u < v {
+                let cstr = model.add_row();
+                model.set_row_lower(cstr, 1.);
+                model.set_weight(cstr, vars[u as usize], 1.);
+                model.set_weight(cstr, vars[v as usize], 1.);
+            }
+        }
+    }
     let mut ilp_duration = 0;
+
+    model.set_obj_sense(Sense::Minimize);
+    let mut dfvs = Vec::new();
+    let solution = model.solve();
+    recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
+    
+    let elapsed = start.elapsed().as_secs();
+    // println!("{}s", elapsed);
+    // println!("{}", dfvs.len());
+    if elapsed > 450 {
+        return None;
+    }
+
     loop {
         let elapsed = start.elapsed().as_secs();
         if elapsed + ilp_duration > 450 {
-            println!("{}s", elapsed);
+            // println!("{}s", elapsed);
             return None;
         }
 
