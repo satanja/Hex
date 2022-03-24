@@ -1,1 +1,1 @@
-RUSTFLAGS='-L ./extern/coinbrew/dist/lib' cargo run --release --bin bench
+cargo run --release --bin bench

@@ -1,6 +1,7 @@
 from typing import List, Optional, Set, TextIO, Tuple
 import sys
 import glob
+import os
 from venv import create
 from graph_tool.all import *
 
@@ -9,8 +10,8 @@ def read_graph(file: TextIO, solution: Optional[Set[int]] = None) -> Tuple[Graph
     g = Graph()
     colors = None
     sizes = None
-    # colors = g.new_vertex_property('vector<double>')
-    # sizes = g.new_vertex_property('int')
+    colors = g.new_vertex_property('vector<double>')
+    sizes = g.new_vertex_property('int')
 
     first = file.readline()
     parameters = first.strip().split(' ')
@@ -19,12 +20,12 @@ def read_graph(file: TextIO, solution: Optional[Set[int]] = None) -> Tuple[Graph
     vertex_list: List[Vertex] = []
     for i in range(vertices):
         v = g.add_vertex()
-        # if solution != None and i in solution:
-            # colors[v] = [1., 165/255, 0, 0.8]
-            # sizes[v] = 5
-        # else:
-            # colors[v] = [0., 1., 1., 0.8]
-            # sizes[v] = 2
+        if solution != None and i in solution:
+            colors[v] = [1., 165/255, 0, 0.8]
+            sizes[v] = 5
+        else:
+            colors[v] = [0., 1., 1., 0.8]
+            sizes[v] = 2
         vertex_list.append(v)
 
     vertex = -1
@@ -40,7 +41,7 @@ def read_graph(file: TextIO, solution: Optional[Set[int]] = None) -> Tuple[Graph
 
 
 def main():
-    directory = 'instances'
+    directory = '../kernels'
     solution: Optional[Set[int]] = None
 
     if len(sys.argv) >= 2:
@@ -53,13 +54,14 @@ def main():
     #         solution.add(vertex)
 
     for path in glob.glob(f'./{directory}/*'):
+        filename = os.path.basename(path)
         with open(path) as file:
             print(path)
             graph, colors, sizes = read_graph(file, solution)
             try:
                 pos = sfdp_layout(graph)
-                graph_draw(graph, pos=pos, vertex_text=graph.vertex_index,
-                        output=f'./graphs/{path[len(path)-5:]}-vis.pdf')
+                graph_draw(graph, pos=pos, vertex_fill_color=colors, vertex_size=sizes, vertex_text=graph.vertex_index,
+                        output=f'../graphs/{filename}-vis.pdf')
             except Exception:
                 print(f'{path} had an exception')
 
