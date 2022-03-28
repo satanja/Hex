@@ -1,7 +1,18 @@
-use crate::util::{self, algorithms::intersection};
+use crate::{
+    exact,
+    util::{
+        self,
+        algorithms::{difference, intersection},
+    },
+};
+use coin_cbc::{Model, Sense};
 use core::fmt;
+use rand::prelude::SliceRandom;
+use rand::rngs::StdRng;
+use rand::SeedableRng;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
+    collections::VecDeque,
     io::{BufWriter, Write},
     process::ChildStdin,
 };
@@ -269,15 +280,15 @@ impl Graph {
         self.coloring[vertex as usize] = Color::Unvisited;
     }
 
-    // pub fn get_active_vertices(&self) -> Vec<u32> {
-    //     let mut result = Vec::new();
-    //     for i in 0..self.total_vertices() {
-    //         if self.active_vertices[i] {
-    //             result.push(i as u32);
-    //         }
-    //     }
-    //     result
-    // }
+    pub fn get_active_vertices(&self) -> Vec<u32> {
+        let mut result = Vec::new();
+        for i in 0..self.total_vertices() {
+            if !self.deleted_vertices[i] {
+                result.push(i as u32);
+            }
+        }
+        result
+    }
 
     // pub fn get_disabled_vertices(&self) -> Vec<u32> {
     //     let mut result = Vec::new();
@@ -443,7 +454,6 @@ impl Graph {
                 .dfs_find_cycle(*vertex as usize, &mut coloring, &mut pred)
                 .unwrap();
 
-
             cycles.push(cycle);
 
             for v in 0..coloring.len() {
@@ -456,7 +466,6 @@ impl Graph {
             for entry in &mut pred {
                 *entry = None;
             }
-
         }
 
         cycles
@@ -799,6 +808,217 @@ impl Graph {
         stars
     }
 
+    /// Returns all vertices that have an undirected edge to another vertex
+    fn single_stars(&self) -> Vec<u32> {
+        let mut single_stars = Vec::new();
+        for i in 0..self.total_vertices() {
+            if self.deleted_vertices[i] {
+                continue;
+            }
+            for j in 0..self.adj[i].len() {
+                let t = self.adj[i][j];
+                if self.adj[t as usize].contains(&(i as u32)) {
+                    single_stars.push(i as u32);
+                    break;
+                }
+            }
+        }
+        single_stars
+    }
+
+    fn undirected_components(&self) -> Vec<Vec<u32>> {
+        let single_stars = self.single_stars();
+
+        let mut map = FxHashMap::default();
+        for i in 0..single_stars.len() {
+            map.insert(single_stars[i], i);
+        }
+
+        let mut discovered = vec![false; single_stars.len()];
+        let mut components = Vec::new();
+        for i in 0..single_stars.len() {
+            if discovered[i] {
+                continue;
+            }
+
+            let mut queue = VecDeque::new();
+            let mut component = Vec::new();
+            queue.push_back(single_stars[i]);
+            discovered[i] = true;
+
+            while let Some(vertex) = queue.pop_front() {
+                component.push(vertex);
+
+                for u in &self.adj[vertex as usize] {
+                    if let Some(index) = map.get(u) {
+                        if self.adj[*u as usize].contains(&vertex) {
+                            // vertex u has an undirected edge
+                            if !discovered[*index] {
+                                discovered[*index] = true;
+                                queue.push_back(*u);
+                            }
+                        }
+                    }
+                }
+            }
+            component.sort();
+            components.push(component);
+        }
+
+        components
+    }
+
+    fn exact_vertex_cover_reduction(&mut self) -> Option<Vec<u32>> {
+        let undir_components = self.undirected_components();
+        let mut forced = Vec::new();
+
+        for component in undir_components {
+            let mut in_vertices = 0;
+            let mut out_vertices = 0;
+            let mut in_vertex = 0;
+            let mut out_vertex = 0;
+            let len = component.len();
+            let vertex_set: FxHashSet<_> = component.iter().map(|v| *v).collect();
+            for vertex in &component {
+                for source in &self.rev_adj[*vertex as usize] {
+                    if !vertex_set.contains(source) {
+                        in_vertices += 1;
+                        in_vertex = *vertex;
+                    }
+                }
+
+                for target in &self.adj[*vertex as usize] {
+                    if !vertex_set.contains(target) {
+                        out_vertices += 1;
+                        out_vertex = *vertex;
+                    }
+                }
+            }
+            if in_vertices != 1 && out_vertices != 1 {
+                continue;
+            }
+
+            // Vertex Cover computation
+            let subgraph = self.induced_subgraph(component.clone());
+            let mut model = Model::default();
+            model.set_parameter("log", "0");
+
+            let mut vars = Vec::with_capacity(subgraph.total_vertices());
+            for _ in 0..subgraph.total_vertices() {
+                let var = model.add_binary();
+                model.set_obj_coeff(var, 1.);
+                vars.push(var);
+            }
+
+            let stars = subgraph.stars();
+            for (u, list) in stars {
+                for v in list {
+                    if u < v {
+                        let cstr = model.add_row();
+                        model.set_row_lower(cstr, 1.);
+                        model.set_weight(cstr, vars[u as usize], 1.);
+                        model.set_weight(cstr, vars[v as usize], 1.);
+                    }
+                }
+            }
+
+            model.set_obj_sense(Sense::Minimize);
+            let mut dfvs = Vec::new();
+            let solution = model.solve();
+
+            for i in 0..vars.len() {
+                if solution.col(vars[i]) >= 0.95 {
+                    dfvs.push(i as u32);
+                }
+            }
+
+            if subgraph.is_acyclic_with_fvs(&dfvs) {
+                if in_vertices == 1 {
+                    if dfvs.contains(&in_vertex) {
+                        self.remove_vertices(&dfvs);
+                        forced.append(&mut dfvs);
+                    } else {
+                        let cstr = model.add_row();
+                        model.set_row_equal(cstr, 1.);
+                        model.set_weight(cstr, vars[in_vertex as usize], 1.);
+                        let new_solution = model.solve();
+                        let mut new_dfvs = Vec::new();
+                        for i in 0..vars.len() {
+                            if new_solution.col(vars[i]) >= 0.95 {
+                                new_dfvs.push(i as u32);
+                            }
+                        }
+                        if new_dfvs.len() == dfvs.len() {
+                            self.remove_vertices(&new_dfvs);
+                            forced.append(&mut new_dfvs);
+                        } else {
+                            self.contract_component_to_vertex(&component);
+                            forced.append(&mut dfvs);
+                        }
+                    }
+                } else {
+                    if dfvs.contains(&out_vertex) {
+                        self.remove_vertices(&dfvs);
+                        forced.append(&mut dfvs);
+                    } else {
+                        let cstr = model.add_row();
+                        model.set_row_equal(cstr, 1.);
+                        model.set_weight(cstr, vars[out_vertex as usize], 1.);
+                        let new_solution = model.solve();
+                        let mut new_dfvs = Vec::new();
+                        for i in 0..vars.len() {
+                            if new_solution.col(vars[i]) >= 0.95 {
+                                new_dfvs.push(i as u32);
+                            }
+                        }
+                        if new_dfvs.len() == dfvs.len() {
+                            self.remove_vertices(&new_dfvs);
+                            forced.append(&mut new_dfvs);
+                        } else {
+                            self.contract_component_to_vertex(&component);
+                            forced.append(&mut dfvs);
+                        }
+                    }
+                }
+            }
+        }
+
+        if forced.len() == 0 {
+            return None;
+        } else {
+            return Some(forced);
+        }
+    }
+
+    fn contract_component_to_vertex(&mut self, component: &Vec<u32>) {
+        let mut leaving = FxHashSet::default();
+        let mut entering = FxHashSet::default();
+        let component_set: FxHashSet<_> = component.iter().map(|v| *v).collect();
+        for vertex in component {
+            for target in &self.adj[*vertex as usize] {
+                if !component_set.contains(&target) {
+                    leaving.insert(*target);
+                }
+            }
+            for source in &self.rev_adj[*vertex as usize] {
+                if !component_set.contains(&source) {
+                    entering.insert(*source);
+                }
+            }
+        }
+
+        let first = component[0];
+        self.remove_vertices(component);
+
+        for vertex in leaving {
+            self.add_arc(first, vertex);
+        }
+        for vertex in entering {
+            self.add_arc(vertex, first);
+        }
+        self.deleted_vertices[first as usize] = false;
+    }
+
     pub fn max_degree_star(&self) -> Option<(u32, Vec<u32>)> {
         let mut stars = self.stars();
         if stars.len() == 0 {
@@ -865,7 +1085,9 @@ impl Graph {
         let mut induced = self.clone();
 
         for i in 0..induced.total_vertices() {
-            if induced.adj[i].len() == 0 {
+            if !subset.contains(&(i as u32)) {
+                induced.adj[i].clear();
+                induced.deleted_vertices[i] = true;
                 continue;
             }
 
@@ -941,6 +1163,15 @@ impl Reducable for Graph {
                 reduced = true;
                 upper_bound -= 1;
                 forced.push(vertex);
+            }
+
+            if reduced {
+                continue;
+            }
+
+            if let Some(mut vertices) = self.exact_vertex_cover_reduction() {
+                forced.append(&mut vertices);
+                reduced = true;
             }
         }
         Some(forced)
@@ -1076,6 +1307,110 @@ impl<'a> Iterator for UndirEdgeIter<'a> {
             self.current_neighbor = 0;
         }
         return None;
+    }
+}
+
+pub trait Compressor {
+    fn compress(&self) -> (Graph, FxHashMap<u32, u32>);
+}
+
+impl Compressor for Graph {
+    fn compress(&self) -> (Graph, FxHashMap<u32, u32>) {
+        let mut map = FxHashMap::default();
+        let mut adj_map = FxHashMap::default();
+        for i in 0..self.total_vertices() {
+            if self.deleted_vertices[i] || self.adj[i].len() == 0 {
+                continue;
+            }
+
+            let index;
+            if !map.contains_key(&(i as u32)) {
+                let len = map.len() as u32;
+                index = len;
+                map.insert(i as u32, len);
+            } else {
+                index = *map.get(&(i as u32)).unwrap();
+            }
+
+            let mut neighbors = Vec::with_capacity(self.adj[i].len());
+            for j in 0..self.adj[i].len() {
+                let target = self.adj[i][j];
+                if let Some(k) = map.get(&target) {
+                    neighbors.push(*k);
+                } else {
+                    let len = map.len() as u32;
+                    neighbors.push(len);
+                    map.insert(target, len);
+                }
+            }
+            adj_map.insert(index, neighbors);
+        }
+
+        let mut graph = Graph::new(map.len());
+        for (source, neighbors) in adj_map {
+            graph.set_adjacency(source, neighbors);
+        }
+        (graph, map)
+    }
+}
+
+pub trait VertexSampler {
+    fn vertex_sample(&self, vertices: usize) -> Graph;
+}
+
+impl VertexSampler for Graph {
+    fn vertex_sample(&self, vertices: usize) -> Graph {
+        let mut threshold = vertices;
+        loop {
+            let mut active = self.get_active_vertices();
+            let mut rng = StdRng::seed_from_u64(0);
+            active.shuffle(&mut rng);
+
+            let subgraph = self.induced_subgraph(active[..threshold].to_vec());
+            let compressed = subgraph.compress().0;
+            if compressed.total_vertices() < vertices {
+                threshold += 10;
+            } else {
+                return compressed;
+            }
+        }
+    }
+}
+
+pub trait BFSSampler {
+    fn bfs_sample(&self, vertices: usize) -> Graph;
+}
+
+impl BFSSampler for Graph {
+    fn bfs_sample(&self, vertices: usize) -> Graph {
+        let mut discovered = vec![false; self.total_vertices()];
+        let mut subset = Vec::new();
+        'main_loop: for i in 0..self.total_vertices() {
+            if self.deleted_vertices[i] {
+                continue;
+            }
+
+            let mut queue = VecDeque::with_capacity(vertices);
+            queue.push_back(i as u32);
+            discovered[i] = true;
+            while let Some(vertex) = queue.pop_front() {
+                if subset.len() < vertices {
+                    subset.push(vertex);
+                } else {
+                    break 'main_loop;
+                }
+                for target in &self.adj[vertex as usize] {
+                    if !discovered[*target as usize] {
+                        discovered[*target as usize] = true;
+                        if queue.len() + subset.len() < vertices {
+                            queue.push_back(*target);
+                        }
+                    }
+                }
+            }
+        }
+        let subgraph = self.induced_subgraph(subset);
+        subgraph.compress().0
     }
 }
 
@@ -1267,5 +1602,39 @@ mod tests {
         graph.add_arc(0, 2);
         graph.add_arc(1, 2);
         assert_eq!(graph.find_cycle_with_fvs(&vec![]), None);
+    }
+
+    #[test]
+    fn undirected_component_test_001() {
+        let mut graph = Graph::new(4);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 0);
+        graph.add_arc(2, 3);
+        graph.add_arc(3, 2);
+        graph.add_arc(2, 1);
+        let components = graph.undirected_components();
+        assert_eq!(components.len(), 2);
+    }
+
+    #[test]
+    fn induced_subgraph_test_001() {
+        let mut graph = Graph::new(3);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 2);
+        graph.add_arc(2, 1);
+        let set = vec![1, 2];
+        let subgraph = graph.induced_subgraph(set);
+        assert_eq!(subgraph.vertices(), 2);
+    }
+
+    #[test]
+    fn induced_subgraph_test_002() {
+        let mut graph = Graph::new(4);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 2);
+        graph.add_arc(2, 1);
+        let set = vec![1, 2, 3];
+        let subgraph = graph.induced_subgraph(set);
+        assert_eq!(subgraph.vertices(), 3);
     }
 }

@@ -11,11 +11,12 @@ mod io;
 mod lower;
 mod util;
 
+use graph::{BFSSampler, Reducable};
+use heur::{GRCycle, Heuristic};
 use std::{fs, path::PathBuf, str::FromStr};
-use heur::{Heuristic, GRCycle};
 
 fn main() {
-    let paths = fs::read_dir("./instances/").unwrap();
+    let paths = fs::read_dir("./unsolved/").unwrap();
     let mut file_names: Vec<_> = paths
         .into_iter()
         .map(|p| p.unwrap().path().display().to_string())
@@ -25,8 +26,9 @@ fn main() {
     for path in file_names {
         println!("{:?}", path);
         let pb = PathBuf::from_str(&path).unwrap();
-        let graph = io::read_from_path(&pb).unwrap();
-        let solution = GRCycle::upper_bound(&graph);
-        println!("{}", solution.len());
+
+        let mut graph = io::read_from_path(&pb).unwrap();
+        graph.reduce(graph.total_vertices());
+        println!("{}", graph.bfs_sample(30));
     }
 }
