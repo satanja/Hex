@@ -14,6 +14,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     collections::VecDeque,
     io::{BufWriter, Write},
+    path::Component,
     process::ChildStdin,
 };
 
@@ -1414,8 +1415,198 @@ impl BFSSampler for Graph {
     }
 }
 
+pub trait Statistics {
+    /// Returns the total number of edges in the graph.
+    fn edges(&self) -> usize;
+
+    /// Returns the total number of edges that do not have their symmetric edge.
+    fn directed_edges(&self) -> usize;
+
+    /// Returns the number of edges that are in undirected form (1 undirected
+    /// edge corresponds to 2 directed edges).
+    fn undirected_edges(&self) -> usize;
+
+    /// Returns the average degree of each vertex, including deleted vertices.
+    fn avg_degree(&self) -> f64;
+
+    /// Returns the average degree of each vertex after unreachable vertices
+    /// have been removed.
+    fn compressed_avg_degree(&self) -> f64;
+
+    /// Returns the *diameter* of a graph, i.e., the maximimum distance between
+    /// any two vertices, which may be `usize::MAX` if starting from vertex
+    /// *v*, there is an unreachable vertex *u*.
+    fn diameter(&self) -> usize;
+
+    /// Also returns the diameter of a graph, but now disregards vertices that
+    /// have been removed after a reduction. If the graph is empty, 0 is
+    /// returned.
+    fn reduced_diameter(&self) -> usize;
+
+    /// Returns the number of ordered pairs *(v, u)* such that *v* has no path
+    /// *u*.
+    fn unreachable_vertices(&self) -> usize;
+
+    /// Returns the number of vertices with at least one undirected edge.
+    fn number_of_stars(&self) -> usize;
+
+    /// Returns the average number of vertices in the neighborhood of all the
+    /// stars.
+    fn avg_star_neighborhood(&self) -> f64;
+
+    /// Returns the number of undirected components, i.e., if *G'* is the graph
+    /// only *undirected* edges, we return the number of connected components in
+    /// *G'*.
+    fn undirected_components(&self) -> usize;
+
+    /// Returns the number of strongly connected components.
+    fn strongly_connected_components(&self) -> usize;
+}
+
+impl Statistics for Graph {
+    fn edges(&self) -> usize {
+        self.adj.iter().fold(0, |acc, l| acc + l.len())
+    }
+
+    fn directed_edges(&self) -> usize {
+        let mut directed = 0;
+        for i in 0..self.adj.len() {
+            if self.deleted_vertices[i] || self.adj[i].len() == 0 {
+                continue;
+            }
+            for target in &self.adj[i] {
+                if !self.adj[*target as usize].contains(&(i as u32)) {
+                    directed += 1;
+                }
+            }
+        }
+        directed
+    }
+
+    fn undirected_edges(&self) -> usize {
+        (self.edges() - self.directed_edges()) / 2
+    }
+
+    fn avg_degree(&self) -> f64 {
+        let edges = self.edges();
+        edges as f64 / self.total_vertices() as f64
+    }
+
+    fn compressed_avg_degree(&self) -> f64 {
+        let (compressed, _) = self.compress();
+        let edges = compressed.edges();
+        let vertices = compressed.total_vertices();
+        edges as f64 / vertices as f64
+    }
+
+    fn diameter(&self) -> usize {
+        if self.is_empty() {
+            return 0;
+        }
+
+        let mut max = 0;
+        let (compressed, _) = self.compress();
+        for i in 0..compressed.vertices() {
+            let mut discovered = FxHashSet::default();
+            let mut queue = VecDeque::new();
+            queue.push_back((i, 0));
+            while let Some((vertex, distance)) = queue.pop_front() {
+                max = std::cmp::max(max, distance);
+                for target in &self.adj[vertex] {
+                    if !discovered.contains(target) {
+                        discovered.insert(*target);
+                        queue.push_back((*target as usize, distance + 1));
+                    }
+                }
+            }
+
+            if discovered.len() != compressed.vertices() {
+                return usize::MAX;
+            }
+        }
+
+        max
+    }
+
+    fn reduced_diameter(&self) -> usize {
+        let mut copy = self.clone();
+        let vertices = copy.total_vertices();
+        Reducable::reduce(&mut copy, vertices);
+        let (compressed, _) = copy.compress();
+        compressed.diameter()
+    }
+
+    fn unreachable_vertices(&self) -> usize {
+        let mut unreachable = 0;
+        let (compressed, _) = self.compress();
+        for i in 0..compressed.vertices() {
+            let mut discovered = FxHashSet::default();
+            let mut queue = VecDeque::new();
+            queue.push_back(i);
+            while let Some(vertex) = queue.pop_front() {
+                for target in &self.adj[vertex] {
+                    if !discovered.contains(target) {
+                        discovered.insert(*target);
+                        queue.push_back(*target as usize);
+                    }
+                }
+            }
+
+            unreachable += compressed.vertices() - discovered.len();
+        }
+
+        unreachable
+    }
+
+    fn number_of_stars(&self) -> usize {
+        self.single_stars().len()
+    }
+
+    fn avg_star_neighborhood(&self) -> f64 {
+        let stars = self.stars();
+        let neighborhood = stars
+            .iter()
+            .fold(0, |acc, (_, neighborhood)| acc + neighborhood.len());
+        neighborhood as f64 / stars.len() as f64
+    }
+
+    fn undirected_components(&self) -> usize {
+        let mut discovered = FxHashSet::default();
+        let mut queue = VecDeque::new();
+        let mut components = 0;
+        for i in 0..self.total_vertices() {
+            if self.deleted_vertices[i] || self.adj[i].len() == 0 {
+                continue;
+            }
+            if !discovered.contains(&(i as u32)) {
+                components += 1;
+                discovered.insert(i as u32);
+                queue.push_back(i as u32);
+
+                while let Some(vertex) = queue.pop_front() {
+                    for target in &self.adj[vertex as usize] {
+                        if self.adj[*target as usize].contains(&vertex)
+                            && !discovered.contains(target)
+                        {
+                            discovered.insert(*target);
+                            queue.push_back(*target);
+                        }
+                    }
+                }
+            }
+        }
+        components
+    }
+
+    fn strongly_connected_components(&self) -> usize {
+        self.tarjan(true).unwrap().len()
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::graph::Statistics;
+
     use super::EdgeIter;
     use super::Graph;
     use super::Reducable;
@@ -1636,5 +1827,40 @@ mod tests {
         let set = vec![1, 2, 3];
         let subgraph = graph.induced_subgraph(set);
         assert_eq!(subgraph.vertices(), 3);
+    }
+
+    #[test]
+    fn edges_test_001() {
+        let mut graph = Graph::new(4);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 2);
+        graph.add_arc(2, 1);
+        assert_eq!(graph.edges(), 3);
+    }
+
+    #[test]
+    fn directed_edges_test_001() {
+        let mut graph = Graph::new(4);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 2);
+        graph.add_arc(2, 1);
+        assert_eq!(graph.directed_edges(), 1);
+    }
+
+    #[test]
+    fn directed_edges_test_002() {
+        let mut graph = Graph::new(4);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 2);
+        assert_eq!(graph.directed_edges(), 2);
+    }
+
+    #[test]
+    fn undirected_edges_test_001() {
+        let mut graph = Graph::new(4);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 2);
+        graph.add_arc(2, 1);
+        assert_eq!(graph.undirected_edges(), 1);
     }
 }
