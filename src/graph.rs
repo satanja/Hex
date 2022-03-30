@@ -865,7 +865,6 @@ impl Graph {
             component.sort();
             components.push(component);
         }
-
         components
     }
 
@@ -1457,7 +1456,7 @@ pub trait Statistics {
     /// Returns the number of undirected components, i.e., if *G'* is the graph
     /// only *undirected* edges, we return the number of connected components in
     /// *G'*.
-    fn undirected_components(&self) -> usize;
+    fn number_of_undirected_components(&self) -> usize;
 
     /// Returns the number of strongly connected components.
     fn strongly_connected_components(&self) -> usize;
@@ -1570,32 +1569,8 @@ impl Statistics for Graph {
         neighborhood as f64 / stars.len() as f64
     }
 
-    fn undirected_components(&self) -> usize {
-        let mut discovered = FxHashSet::default();
-        let mut queue = VecDeque::new();
-        let mut components = 0;
-        for i in 0..self.total_vertices() {
-            if self.deleted_vertices[i] || self.adj[i].len() == 0 {
-                continue;
-            }
-            if !discovered.contains(&(i as u32)) {
-                components += 1;
-                discovered.insert(i as u32);
-                queue.push_back(i as u32);
-
-                while let Some(vertex) = queue.pop_front() {
-                    for target in &self.adj[vertex as usize] {
-                        if self.adj[*target as usize].contains(&vertex)
-                            && !discovered.contains(target)
-                        {
-                            discovered.insert(*target);
-                            queue.push_back(*target);
-                        }
-                    }
-                }
-            }
-        }
-        components
+    fn number_of_undirected_components(&self) -> usize {
+        self.undirected_components().len()
     }
 
     fn strongly_connected_components(&self) -> usize {

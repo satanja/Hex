@@ -18,13 +18,12 @@ use std::{fs, path::PathBuf, str::FromStr};
 use crate::graph::Statistics;
 
 fn main() {
-    let paths = fs::read_dir("./todo/").unwrap();
+    let paths = fs::read_dir("./instances/").unwrap();
     let mut file_names: Vec<_> = paths
         .into_iter()
         .map(|p| p.unwrap().path().display().to_string())
         .collect();
     file_names.sort();
-    file_names.reverse();
 
     println!("dataset,vertices,edges,\"directed edges\",\"undirected edges\",\"avg degree\",\"compressed avg degree\",diameter,\"reduced diameter\",\"unreachable vertices\",\"stars\",\"avg star neighborhood\",\"undirected components\",sccs");
     for path in file_names {
@@ -43,7 +42,7 @@ fn main() {
         let unreachable = graph.unreachable_vertices();
         let stars = graph.number_of_stars();
         let avg_star_ngh = graph.avg_star_neighborhood();
-        let undir_components = graph.undirected_components();
+        let undir_components = graph.number_of_undirected_components();
         let sccs = graph.strongly_connected_components();
         println!(
             "{},{},{},{},{},{:.2},{:.2},{},{},{},{},{:.2},{},{}",
@@ -62,7 +61,5 @@ fn main() {
             undir_components,
             sccs
         );
-
-        println!("{}", stars);
     }
 }
