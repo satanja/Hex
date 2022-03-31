@@ -11,58 +11,51 @@ mod io;
 mod lower;
 mod util;
 
-use graph::{BFSSampler, Reducable};
-use heur::{GRCycle, Heuristic};
+use graph::{Reducable};
 use std::{fs, path::PathBuf, str::FromStr};
 
 use crate::graph::Statistics;
 
 fn main() {
-    let paths = fs::read_dir("./todo/").unwrap();
+    let paths = fs::read_dir("./instances/").unwrap();
     let mut file_names: Vec<_> = paths
         .into_iter()
         .map(|p| p.unwrap().path().display().to_string())
         .collect();
     file_names.sort();
-    file_names.reverse();
 
-    println!("dataset,vertices,edges,\"directed edges\",\"undirected edges\",\"avg degree\",\"compressed avg degree\",diameter,\"reduced diameter\",\"unreachable vertices\",\"stars\",\"avg star neighborhood\",\"undirected components\",sccs");
+    println!("dataset,vertices,edges,\"directed edges\",\"undirected edges\",\"compressed avg degree\",\"compressed diameter\",\"unreachable vertices%\",\"stars\",\"avg star neighborhood\",\"undirected components\",sccs");
     for path in file_names {
         let pb = PathBuf::from_str(&path).unwrap();
 
         let mut graph = io::read_from_path(&pb).unwrap();
         graph.reduce(graph.total_vertices());
         let vertices = graph.vertices();
-        let edges = graph.edges();
-        let dir_edges = graph.directed_edges();
-        let undir_edges = graph.undirected_edges();
-        let avg_degree = graph.avg_degree();
-        let cavg_degree = graph.compressed_avg_degree();
-        let diameter = graph.diameter();
-        let rdiameter = graph.reduced_diameter();
-        let unreachable = graph.unreachable_vertices();
-        let stars = graph.number_of_stars();
-        let avg_star_ngh = graph.avg_star_neighborhood();
-        let undir_components = graph.undirected_components();
-        let sccs = graph.strongly_connected_components();
-        println!(
-            "{},{},{},{},{},{:.2},{:.2},{},{},{},{},{:.2},{},{}",
-            pb.file_name().unwrap().to_str().unwrap(),
-            vertices,
-            edges,
-            dir_edges,
-            undir_edges,
-            avg_degree,
-            cavg_degree,
-            diameter,
-            rdiameter,
-            unreachable,
-            stars,
-            avg_star_ngh,
-            undir_components,
-            sccs
-        );
-
-        println!("{}", stars);
+        // let edges = graph.edges();
+        // let dir_edges = graph.directed_edges();
+        // let undir_edges = graph.undirected_edges();
+        // let cavg_degree = graph.compressed_avg_degree();
+        // let cdiameter = graph.compressed_diameter();
+        let unreachable = graph.compressed_unreachable_vertices();
+        // let stars = graph.number_of_stars();
+        // let avg_star_ngh = graph.avg_star_neighborhood();
+        // let undir_components = graph.undirected_components();
+        // let sccs = graph.strongly_connected_components();
+        // println!(
+        //     "{},{},{},{},{},{:.2},{},{:.2},{},{:.2},{},{}",
+        //     pb.file_name().unwrap().to_str().unwrap(),
+        //     vertices,
+        //     edges,
+        //     dir_edges,
+        //     undir_edges,
+        //     cavg_degree,
+        //     cdiameter,
+        //     unreachable as f64 / (vertices * vertices) as f64 * 100.,
+        //     stars,
+        //     avg_star_ngh,
+        //     undir_components,
+        //     sccs
+        // );
+        println!("{:.2}", unreachable as f64 / (vertices * vertices) as f64 * 100.);
     }
 }

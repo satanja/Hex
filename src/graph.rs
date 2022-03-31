@@ -1435,17 +1435,13 @@ pub trait Statistics {
 
     /// Returns the *diameter* of a graph, i.e., the maximimum distance between
     /// any two vertices, which may be `usize::MAX` if starting from vertex
-    /// *v*, there is an unreachable vertex *u*.
-    fn diameter(&self) -> usize;
-
-    /// Also returns the diameter of a graph, but now disregards vertices that
-    /// have been removed after a reduction. If the graph is empty, 0 is
-    /// returned.
-    fn reduced_diameter(&self) -> usize;
+    /// *v*, if there is an unreachable vertex *u* in the compressed graph.
+    /// If the graph is empty, 0 is returned.
+    fn compressed_diameter(&self) -> usize;
 
     /// Returns the number of ordered pairs *(v, u)* such that *v* has no path
-    /// *u*.
-    fn unreachable_vertices(&self) -> usize;
+    /// *u* in the compressed graph *G*.
+    fn compressed_unreachable_vertices(&self) -> usize;
 
     /// Returns the number of vertices with at least one undirected edge.
     fn number_of_stars(&self) -> usize;
@@ -1499,60 +1495,59 @@ impl Statistics for Graph {
         edges as f64 / vertices as f64
     }
 
-    fn diameter(&self) -> usize {
-        if self.is_empty() {
+    fn compressed_diameter(&self) -> usize {
+        let (compressed, _) = self.compress();
+        let components = compressed.tarjan(true).unwrap();
+
+        if compressed.is_empty() {
             return 0;
         }
 
         let mut max = 0;
-        let (compressed, _) = self.compress();
-        for i in 0..compressed.vertices() {
-            let mut discovered = FxHashSet::default();
-            let mut queue = VecDeque::new();
-            queue.push_back((i, 0));
-            while let Some((vertex, distance)) = queue.pop_front() {
-                max = std::cmp::max(max, distance);
-                for target in &self.adj[vertex] {
-                    if !discovered.contains(target) {
-                        discovered.insert(*target);
-                        queue.push_back((*target as usize, distance + 1));
+        for component in components {
+            let subgraph = compressed.induced_subgraph(component);
+            let (csubgraph, _) = subgraph.compress();
+
+            for i in 0..csubgraph.vertices() {
+                let mut discovered = vec![false; csubgraph.vertices()];
+                let mut queue = VecDeque::with_capacity(csubgraph.vertices());
+                discovered[i] = true;
+                queue.push_back((i, 0));
+                while let Some((vertex, distance)) = queue.pop_front() {
+                    max = std::cmp::max(max, distance);
+                    for target in &csubgraph.adj[vertex] {
+                        if !discovered[*target as usize] {
+                            discovered[*target as usize] = true;
+                            queue.push_back((*target as usize, distance + 1));
+                        }
                     }
                 }
-            }
-
-            if discovered.len() != compressed.vertices() {
-                return usize::MAX;
             }
         }
 
         max
     }
 
-    fn reduced_diameter(&self) -> usize {
-        let mut copy = self.clone();
-        let vertices = copy.total_vertices();
-        Reducable::reduce(&mut copy, vertices);
-        let (compressed, _) = copy.compress();
-        compressed.diameter()
-    }
-
-    fn unreachable_vertices(&self) -> usize {
+    fn compressed_unreachable_vertices(&self) -> usize {
         let mut unreachable = 0;
         let (compressed, _) = self.compress();
         for i in 0..compressed.vertices() {
-            let mut discovered = FxHashSet::default();
-            let mut queue = VecDeque::new();
+            let mut discovered = vec![false; compressed.vertices()];
+            let mut queue = VecDeque::with_capacity(compressed.vertices());
+            let mut discoveries = 1;
+            discovered[i] = true;
             queue.push_back(i);
             while let Some(vertex) = queue.pop_front() {
-                for target in &self.adj[vertex] {
-                    if !discovered.contains(target) {
-                        discovered.insert(*target);
+                for target in &compressed.adj[vertex] {
+                    if !discovered[*target as usize] {
+                        discovered[*target as usize] = true;
+                        discoveries += 1;
                         queue.push_back(*target as usize);
                     }
                 }
             }
 
-            unreachable += compressed.vertices() - discovered.len();
+            unreachable += compressed.vertices() - discoveries;
         }
 
         unreachable
@@ -1862,5 +1857,13 @@ mod tests {
         graph.add_arc(1, 2);
         graph.add_arc(2, 1);
         assert_eq!(graph.undirected_edges(), 1);
+    }
+
+    #[test]
+    fn compressed_unreachable_vertices_test_001() {
+        let mut graph = Graph::new(4);
+        graph.add_arc(1, 2);
+        graph.add_arc(2, 1);
+        assert_eq!(graph.compressed_unreachable_vertices(), 0);
     }
 }
