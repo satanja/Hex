@@ -1,1 +1,1 @@
-cargo run --release --bin bench
+cargo bench -- 4 450 ./instances/
