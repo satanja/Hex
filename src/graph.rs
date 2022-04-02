@@ -189,11 +189,11 @@ impl Graph {
         true
     }
 
-    pub fn lower_bound(&self) -> usize {
-        let stars = self.stars();
-        debug_assert!(stars.len() % 2 == 0);
-        stars.len() / 2
-    }
+    // pub fn lower_bound(&self) -> usize {
+    //     let stars = self.stars();
+    //     debug_assert!(stars.len() % 2 == 0);
+    //     stars.len() / 2
+    // }
 
     // pub fn num_active_vertices(&self) -> usize {
     //     self.num_active_vertices
@@ -289,6 +289,14 @@ impl Graph {
             }
         }
         result
+    }
+
+    pub fn get_outgoing(&self, vertex: &u32) -> &Vec<u32> {
+        &self.adj[*vertex as usize]
+    }
+
+    pub fn get_incoming(&self, vertex: &u32) -> &Vec<u32> {
+        &self.rev_adj[*vertex as usize]
     }
 
     // pub fn get_disabled_vertices(&self) -> Vec<u32> {
@@ -1169,10 +1177,10 @@ impl Reducable for Graph {
                 continue;
             }
 
-            if let Some(mut vertices) = self.exact_vertex_cover_reduction() {
-                forced.append(&mut vertices);
-                reduced = true;
-            }
+            // if let Some(mut vertices) = self.exact_vertex_cover_reduction() {
+            //     forced.append(&mut vertices);
+            //     reduced = true;
+            // }
         }
         Some(forced)
     }
@@ -1350,7 +1358,7 @@ impl Compressor for Graph {
         for (source, neighbors) in adj_map {
             graph.set_adjacency(source, neighbors);
         }
-        (graph, map)
+        (graph, map.into_iter().map(|(k, v)| (v, k)).collect())
     }
 }
 

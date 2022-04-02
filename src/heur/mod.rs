@@ -1,8 +1,10 @@
 use crate::{
     graph::{Graph, HeuristicReduce},
 };
-use std::collections::HashSet;
 
+mod sa;
+use rustc_hash::FxHashSet;
+pub use sa::SimulatedAnnealing; 
 pub trait Heuristic {
     fn upper_bound(graph: &Graph) -> Vec<u32>;
 }
@@ -66,7 +68,7 @@ impl Heuristic for GRCycle {
 /// the graph, and if the graph is still acyclic, we can continue. Otherwise,
 /// that vertex must be removed from the graph.
 pub fn make_minimal(graph: &mut Graph, solution: Vec<u32>) -> Vec<u32> {
-    let mut set: HashSet<_> = solution.iter().map(|v| *v).collect();
+    let mut set: FxHashSet<_> = solution.iter().map(|v| *v).collect();
     for vertex in &solution {
         graph.disable_vertex_post(*vertex);
     }
@@ -77,6 +79,7 @@ pub fn make_minimal(graph: &mut Graph, solution: Vec<u32>) -> Vec<u32> {
             graph.disable_vertex_post(vertex);
         } else {
             set.remove(&vertex);
+            println!("optimized");
         }
     }
     set.into_iter().collect()

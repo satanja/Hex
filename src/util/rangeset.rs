@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
 pub struct RangeSet {
     set: Vec<u32>,
@@ -69,5 +71,28 @@ impl RangeSet {
 
     pub fn iter(&self) -> impl Iterator<Item=&u32> {
         self.set.iter()
+    }
+
+    pub fn clone_set(&self) -> Vec<u32> {
+        self.set.clone()
+    }
+}
+
+impl Index<usize> for RangeSet {
+    type Output = u32;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.set[index]
+    }
+}
+
+impl FromIterator<u32> for RangeSet {
+    fn from_iter<T: IntoIterator<Item = u32>>(iter: T) -> Self {
+        let mut set = Vec::new();
+        for vertex in iter {
+            set.push(vertex);
+        }
+        let table: Vec<_> = (0..set.len()).map(|i| Some(i)).collect();
+        RangeSet { set, table }
     }
 }

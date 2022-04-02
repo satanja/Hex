@@ -12,6 +12,7 @@ mod lower;
 mod util;
 
 use graph::{Reducable};
+use heur::{Heuristic, SimulatedAnnealing};
 use std::{fs, path::PathBuf, str::FromStr};
 
 use crate::graph::Statistics;
@@ -24,38 +25,11 @@ fn main() {
         .collect();
     file_names.sort();
 
-    println!("dataset,vertices,edges,\"directed edges\",\"undirected edges\",\"compressed avg degree\",\"compressed diameter\",\"unreachable vertices%\",\"stars\",\"avg star neighborhood\",\"undirected components\",sccs");
     for path in file_names {
         let pb = PathBuf::from_str(&path).unwrap();
 
-        let mut graph = io::read_from_path(&pb).unwrap();
-        graph.reduce(graph.total_vertices());
-        let vertices = graph.vertices();
-        // let edges = graph.edges();
-        // let dir_edges = graph.directed_edges();
-        // let undir_edges = graph.undirected_edges();
-        // let cavg_degree = graph.compressed_avg_degree();
-        // let cdiameter = graph.compressed_diameter();
-        let unreachable = graph.compressed_unreachable_vertices();
-        // let stars = graph.number_of_stars();
-        // let avg_star_ngh = graph.avg_star_neighborhood();
-        // let undir_components = graph.undirected_components();
-        // let sccs = graph.strongly_connected_components();
-        // println!(
-        //     "{},{},{},{},{},{:.2},{},{:.2},{},{:.2},{},{}",
-        //     pb.file_name().unwrap().to_str().unwrap(),
-        //     vertices,
-        //     edges,
-        //     dir_edges,
-        //     undir_edges,
-        //     cavg_degree,
-        //     cdiameter,
-        //     unreachable as f64 / (vertices * vertices) as f64 * 100.,
-        //     stars,
-        //     avg_star_ngh,
-        //     undir_components,
-        //     sccs
-        // );
-        println!("{:.2}", unreachable as f64 / (vertices * vertices) as f64 * 100.);
+        let graph = io::read_from_path(&pb).unwrap();
+        let upper_bound = SimulatedAnnealing::upper_bound(&graph);
+        println!("{}", upper_bound.len());
     }
 }

@@ -1,1 +1,1 @@
-cargo bench -- 4 450 ./instances/
+cargo bench -- 24 900 ./instances/
