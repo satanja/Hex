@@ -20,8 +20,8 @@ impl Heuristic for Greedy {
             solution.push(v);
         }
 
-        let p = make_minimal(&mut graph.clone(), solution);
-        p
+        
+        make_minimal(&mut graph.clone(), solution)
     }
 }
 
@@ -68,7 +68,7 @@ impl Heuristic for GRCycle {
 /// the graph, and if the graph is still acyclic, we can continue. Otherwise,
 /// that vertex must be removed from the graph.
 pub fn make_minimal(graph: &mut Graph, solution: Vec<u32>) -> Vec<u32> {
-    let mut set: FxHashSet<_> = solution.iter().map(|v| *v).collect();
+    let mut set: FxHashSet<_> = solution.iter().copied().collect();
     for vertex in &solution {
         graph.disable_vertex_post(*vertex);
     }

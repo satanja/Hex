@@ -107,7 +107,7 @@ pub struct Heap<T: Ord + KeyValue> {
 }
 
 impl<T: Ord + KeyValue> Heap<T> {
-    pub fn new(range: usize) -> Heap<T> {
+    pub fn new(_range: usize) -> Heap<T> {
         Heap {
             heap: Vec::new(),
             table: Vec::new(),

@@ -11,11 +11,11 @@ mod io;
 mod lower;
 mod util;
 
-use graph::{Reducable};
+
 use heur::{Heuristic, SimulatedAnnealing};
 use std::{fs, path::PathBuf, str::FromStr};
 
-use crate::graph::Statistics;
+
 
 fn main() {
     let paths = fs::read_dir("./instances/").unwrap();

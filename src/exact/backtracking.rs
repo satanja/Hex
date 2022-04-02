@@ -66,7 +66,7 @@ pub fn branch_and_bound(
             }
         }
     }
-    return best;
+    best
 }
 
 fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> {

@@ -55,13 +55,13 @@ fn run_solver(graph: &Graph, solution: &mut Vec<u32>, time_limit: Duration) -> b
     let mut buf = Vec::new();
     stdout.read_to_end(&mut buf).unwrap();
 
-    if buf.len() == 0 {
+    if buf.is_empty() {
         return false;
     }
 
     extract_vc_solution_from_bytes(&buf, solution);
 
-    return true;
+    true
 }
 
 pub fn solve(graph: &Graph, solution: &mut Vec<u32>) -> bool {
@@ -81,5 +81,5 @@ pub fn solve(graph: &Graph, solution: &mut Vec<u32>) -> bool {
         return true;
     }
 
-    return false;
+    false
 }

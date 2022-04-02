@@ -23,7 +23,7 @@ impl RangeSet {
             }
             _ => {}
         }
-        return false;
+        false
     }
 
     pub fn contains(&self, vertex: &u32) -> bool {
@@ -39,20 +39,16 @@ impl RangeSet {
             let last = self.set.last().unwrap();
             let last_index = self.table[*last as usize].unwrap();
 
-            let temp = self.table[*last as  usize];
-            self.table[*last as usize] = self.table[*vertex as usize];
-            self.table[*vertex as usize] = temp;
+            self.table.swap(*last as usize, *vertex as usize);
 
-            let temp2 = self.set[index];
-            self.set[index] = self.set[last_index];
-            self.set[last_index] = temp2;
+            self.set.swap(index, last_index);
 
             self.set.pop();
             self.table[*vertex as usize] = None;
 
             return true;
         }
-        return false;
+        false
     }
 
     pub fn pop(&mut self) -> Option<u32> {
@@ -92,7 +88,7 @@ impl FromIterator<u32> for RangeSet {
         for vertex in iter {
             set.push(vertex);
         }
-        let table: Vec<_> = (0..set.len()).map(|i| Some(i)).collect();
+        let table: Vec<_> = (0..set.len()).map(Some).collect();
         RangeSet { set, table }
     }
 }

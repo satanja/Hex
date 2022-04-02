@@ -1,6 +1,6 @@
 use crate::graph::{Graph, HeuristicReduce, Undirected};
-use crate::heur::{GRMaxDegree, Heuristic};
-use crate::lower;
+
+
 
 mod backtracking;
 mod cycle_ilp;

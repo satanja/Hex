@@ -219,7 +219,7 @@ impl SimulatedAnnealing {
         self.dfvs.clone_set()
     }
 
-    fn upper_bound(&mut self, graph: &Graph) -> Vec<u32> {
+    fn upper_bound(&mut self, _graph: &Graph) -> Vec<u32> {
         if !self.graph.is_empty() {
             const TEMPERATURE: f64 = 0.6;
             const ALPHA: f64 = 0.99;
@@ -258,7 +258,7 @@ impl SimulatedAnnealing {
                 } else {
                     nb_fail = 0;
                 }
-                temp = temp * ALPHA;
+                temp *= ALPHA;
 
                 if nb_fail == FAILS {
                     break;
@@ -279,8 +279,8 @@ impl SimulatedAnnealing {
 impl Heuristic for SimulatedAnnealing {
     fn upper_bound(graph: &Graph) -> Vec<u32> {
         let mut sa = SimulatedAnnealing::new(graph, true);
-        let solution = sa.upper_bound(graph);
-        solution
+        
+        sa.upper_bound(graph)
     }
 }
 

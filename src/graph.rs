@@ -1,8 +1,7 @@
 use crate::{
-    exact,
     util::{
         self,
-        algorithms::{difference, intersection},
+        algorithms::{intersection},
     },
 };
 use coin_cbc::{Model, Sense};
@@ -14,7 +13,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     collections::VecDeque,
     io::{BufWriter, Write},
-    path::Component,
     process::ChildStdin,
 };
 
@@ -61,7 +59,7 @@ enum Color {
 impl Graph {
     pub fn new(vertices: usize) -> Graph {
         let active_vertices = vec![true; vertices];
-        let num_active_vertices = vertices;
+        let _num_active_vertices = vertices;
         let coloring = vec![Color::Unvisited; vertices];
         let adj = vec![Vec::new(); vertices];
         let rev_adj = vec![Vec::new(); vertices];
@@ -327,7 +325,7 @@ impl Graph {
         }
 
         coloring[vertex] = Color::Exhausted;
-        return false;
+        false
     }
 
     /// Test whether the graph has a cycle. Simple DFS implementation based on
@@ -418,7 +416,7 @@ impl Graph {
         }
 
         coloring[vertex] = Color::Exhausted;
-        return None;
+        None
     }
 
     pub fn find_cycle_with_fvs(&self, fvs: &Vec<u32>) -> Option<Vec<u32>> {
@@ -547,7 +545,7 @@ impl Graph {
                     }
                     *components += 1;
                 }
-                if work_stack.len() != 0 {
+                if !work_stack.is_empty() {
                     let (up, _) = work_stack.last().unwrap();
                     low[*up] = std::cmp::min(low[*up], low[u]);
                 }
@@ -617,7 +615,7 @@ impl Graph {
                 }
             }
         }
-        singletons.sort();
+        singletons.sort_unstable();
         self.remove_vertices(&singletons);
 
         // compute the induced graph by parts of the strongly connected components
@@ -668,7 +666,7 @@ impl Graph {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     fn self_loop_reduction(&mut self) -> Vec<u32> {
@@ -689,7 +687,7 @@ impl Graph {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     fn has_single_incoming(&self) -> bool {
@@ -699,7 +697,7 @@ impl Graph {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     fn single_incoming_reduction(&mut self) {
@@ -776,7 +774,7 @@ impl Graph {
 
     fn has_empty_vertex(&self) -> bool {
         for i in 0..self.adj.len() {
-            if self.adj[i].len() == 0 && self.rev_adj[i].len() == 0 && !self.deleted_vertices[i] {
+            if self.adj[i].is_empty() && self.rev_adj[i].is_empty() && !self.deleted_vertices[i] {
                 return true;
             }
         }
@@ -785,7 +783,7 @@ impl Graph {
 
     fn empty_vertices(&mut self) {
         for i in 0..self.adj.len() {
-            if self.adj[i].len() == 0 && self.rev_adj[i].len() == 0 && !self.deleted_vertices[i] {
+            if self.adj[i].is_empty() && self.rev_adj[i].is_empty() && !self.deleted_vertices[i] {
                 self.deleted_vertices[i] = true;
             }
         }
@@ -809,7 +807,7 @@ impl Graph {
         }
         let mut stars = Vec::new();
         for i in 0..count.len() {
-            if count[i].len() != 0 {
+            if !count[i].is_empty() {
                 let neighborhood = std::mem::take(&mut count[i]);
                 stars.push((i as u32, neighborhood));
             }
@@ -870,7 +868,7 @@ impl Graph {
                     }
                 }
             }
-            component.sort();
+            component.sort_unstable();
             components.push(component);
         }
         components
@@ -885,8 +883,8 @@ impl Graph {
             let mut out_vertices = 0;
             let mut in_vertex = 0;
             let mut out_vertex = 0;
-            let len = component.len();
-            let vertex_set: FxHashSet<_> = component.iter().map(|v| *v).collect();
+            let _len = component.len();
+            let vertex_set: FxHashSet<_> = component.iter().copied().collect();
             for vertex in &component {
                 for source in &self.rev_adj[*vertex as usize] {
                     if !vertex_set.contains(source) {
@@ -964,52 +962,50 @@ impl Graph {
                             forced.append(&mut dfvs);
                         }
                     }
+                } else if dfvs.contains(&out_vertex) {
+                    self.remove_vertices(&dfvs);
+                    forced.append(&mut dfvs);
                 } else {
-                    if dfvs.contains(&out_vertex) {
-                        self.remove_vertices(&dfvs);
-                        forced.append(&mut dfvs);
+                    let cstr = model.add_row();
+                    model.set_row_equal(cstr, 1.);
+                    model.set_weight(cstr, vars[out_vertex as usize], 1.);
+                    let new_solution = model.solve();
+                    let mut new_dfvs = Vec::new();
+                    for i in 0..vars.len() {
+                        if new_solution.col(vars[i]) >= 0.95 {
+                            new_dfvs.push(i as u32);
+                        }
+                    }
+                    if new_dfvs.len() == dfvs.len() {
+                        self.remove_vertices(&new_dfvs);
+                        forced.append(&mut new_dfvs);
                     } else {
-                        let cstr = model.add_row();
-                        model.set_row_equal(cstr, 1.);
-                        model.set_weight(cstr, vars[out_vertex as usize], 1.);
-                        let new_solution = model.solve();
-                        let mut new_dfvs = Vec::new();
-                        for i in 0..vars.len() {
-                            if new_solution.col(vars[i]) >= 0.95 {
-                                new_dfvs.push(i as u32);
-                            }
-                        }
-                        if new_dfvs.len() == dfvs.len() {
-                            self.remove_vertices(&new_dfvs);
-                            forced.append(&mut new_dfvs);
-                        } else {
-                            self.contract_component_to_vertex(&component);
-                            forced.append(&mut dfvs);
-                        }
+                        self.contract_component_to_vertex(&component);
+                        forced.append(&mut dfvs);
                     }
                 }
             }
         }
 
-        if forced.len() == 0 {
-            return None;
+        if forced.is_empty() {
+            None
         } else {
-            return Some(forced);
+            Some(forced)
         }
     }
 
     fn contract_component_to_vertex(&mut self, component: &Vec<u32>) {
         let mut leaving = FxHashSet::default();
         let mut entering = FxHashSet::default();
-        let component_set: FxHashSet<_> = component.iter().map(|v| *v).collect();
+        let component_set: FxHashSet<_> = component.iter().copied().collect();
         for vertex in component {
             for target in &self.adj[*vertex as usize] {
-                if !component_set.contains(&target) {
+                if !component_set.contains(target) {
                     leaving.insert(*target);
                 }
             }
             for source in &self.rev_adj[*vertex as usize] {
-                if !component_set.contains(&source) {
+                if !component_set.contains(source) {
                     entering.insert(*source);
                 }
             }
@@ -1029,7 +1025,7 @@ impl Graph {
 
     pub fn max_degree_star(&self) -> Option<(u32, Vec<u32>)> {
         let mut stars = self.stars();
-        if stars.len() == 0 {
+        if stars.is_empty() {
             return None;
         }
 
@@ -1045,7 +1041,7 @@ impl Graph {
 
     fn star_reduction(&mut self, parameter: usize) -> Option<u32> {
         let stars = self.stars();
-        if stars.len() == 0 {
+        if stars.is_empty() {
             return None;
         }
         let (v, neighbours) = stars.last().unwrap();
@@ -1053,7 +1049,7 @@ impl Graph {
             self.remove_vertex(*v);
             return Some(*v);
         }
-        return None;
+        None
     }
 
     fn twin_reduction(&mut self) -> Vec<u32> {
@@ -1069,7 +1065,7 @@ impl Graph {
             let mut list = self.adj[i].clone();
             // closed neighborhood
             list.push(i as u32);
-            list.sort();
+            list.sort_unstable();
 
             if let Some(class) = classes.get_mut(&list) {
                 class.push(i as u32);
@@ -1089,7 +1085,7 @@ impl Graph {
     }
 
     pub fn induced_subgraph(&self, mut subset: Vec<u32>) -> Graph {
-        subset.sort();
+        subset.sort_unstable();
         let mut induced = self.clone();
 
         for i in 0..induced.total_vertices() {
@@ -1158,7 +1154,7 @@ impl Reducable for Graph {
                 return None;
             }
 
-            if twins.len() != 0 {
+            if !twins.is_empty() {
                 reduced = true;
                 upper_bound -= twins.len();
                 forced.append(&mut twins);
@@ -1288,7 +1284,7 @@ impl EdgeIter for Graph {
         UndirEdgeIter {
             current_vertex: 0,
             current_neighbor: 0,
-            graph: &self,
+            graph: self,
         }
     }
 }
@@ -1314,7 +1310,7 @@ impl<'a> Iterator for UndirEdgeIter<'a> {
             }
             self.current_neighbor = 0;
         }
-        return None;
+        None
     }
 }
 
@@ -1327,7 +1323,7 @@ impl Compressor for Graph {
         let mut map = FxHashMap::default();
         let mut adj_map = FxHashMap::default();
         for i in 0..self.total_vertices() {
-            if self.deleted_vertices[i] || self.adj[i].len() == 0 {
+            if self.deleted_vertices[i] || self.adj[i].is_empty() {
                 continue;
             }
 
@@ -1474,7 +1470,7 @@ impl Statistics for Graph {
     fn directed_edges(&self) -> usize {
         let mut directed = 0;
         for i in 0..self.adj.len() {
-            if self.deleted_vertices[i] || self.adj[i].len() == 0 {
+            if self.deleted_vertices[i] || self.adj[i].is_empty() {
                 continue;
             }
             for target in &self.adj[i] {
