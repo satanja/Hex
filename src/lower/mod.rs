@@ -1,7 +1,7 @@
 //! Module to compute lower bounds for the graph
 use crate::graph::{Graph, Undirected};
-mod vc_rilp;
 mod cycle_rilp;
+mod vc_rilp;
 
 pub fn lower_bound(graph: &Graph) -> usize {
     if graph.is_undirected() {

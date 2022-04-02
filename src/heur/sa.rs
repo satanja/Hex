@@ -279,7 +279,7 @@ impl SimulatedAnnealing {
 impl Heuristic for SimulatedAnnealing {
     fn upper_bound(graph: &Graph) -> Vec<u32> {
         let mut sa = SimulatedAnnealing::new(graph, true);
-        
+
         sa.upper_bound(graph)
     }
 }

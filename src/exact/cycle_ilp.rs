@@ -1,6 +1,6 @@
 use crate::graph::Graph;
 use coin_cbc::{Col, Model, Sense, Solution};
-use std::time::{Instant};
+use std::time::Instant;
 
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
     let start = Instant::now();

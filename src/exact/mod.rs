@@ -1,7 +1,5 @@
 use crate::graph::{Graph, HeuristicReduce, Undirected};
 
-
-
 mod backtracking;
 mod cycle_ilp;
 mod heur_ilp;

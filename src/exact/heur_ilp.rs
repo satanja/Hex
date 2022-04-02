@@ -1,7 +1,6 @@
+use crate::heur::{make_minimal, GRMaxDegree};
 use crate::{graph::Graph, heur::Heuristic};
-use crate::heur::{GRMaxDegree, make_minimal};
 use coin_cbc::{Col, Model, Sense, Solution};
-
 
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
     let mut model = Model::default();
@@ -14,9 +13,9 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
         vars.push(var);
     }
     model.set_obj_sense(Sense::Minimize);
-    
+
     let _ilp_duration = 0;
-    
+
     let mut dfvs = GRMaxDegree::upper_bound(graph);
     let cycles = graph.find_cycle_from_minimal(&dfvs);
     for cycle in cycles {
@@ -29,7 +28,7 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
 
     let solution = model.solve();
     recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
-    
+
     loop {
         let mut changed = false;
         while let Some(cycle) = graph.find_cycle_with_fvs(&dfvs) {
@@ -55,7 +54,6 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
         } else {
             break;
         }
-
 
         let _out = shh::stdout();
 

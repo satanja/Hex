@@ -1,9 +1,4 @@
-use crate::{
-    util::{
-        self,
-        algorithms::{intersection},
-    },
-};
+use crate::util::{self, algorithms::intersection};
 use coin_cbc::{Model, Sense};
 use core::fmt;
 use rand::prelude::SliceRandom;

@@ -16,10 +16,10 @@ impl RangeSet {
 
     pub fn insert(&mut self, vertex: u32) -> bool {
         match self.table[vertex as usize] {
-            None => { 
+            None => {
                 self.table[vertex as usize] = Some(self.set.len());
                 self.set.push(vertex);
-                return true
+                return true;
             }
             _ => {}
         }
@@ -29,7 +29,7 @@ impl RangeSet {
     pub fn contains(&self, vertex: &u32) -> bool {
         match self.table[*vertex as usize] {
             None => false,
-            _ => true
+            _ => true,
         }
     }
 
@@ -65,7 +65,7 @@ impl RangeSet {
         self.set.len()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=&u32> {
+    pub fn iter(&self) -> impl Iterator<Item = &u32> {
         self.set.iter()
     }
 

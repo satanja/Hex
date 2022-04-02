@@ -1,10 +1,8 @@
-use crate::{
-    graph::{Graph, HeuristicReduce},
-};
+use crate::graph::{Graph, HeuristicReduce};
 
 mod sa;
 use rustc_hash::FxHashSet;
-pub use sa::SimulatedAnnealing; 
+pub use sa::SimulatedAnnealing;
 pub trait Heuristic {
     fn upper_bound(graph: &Graph) -> Vec<u32>;
 }
@@ -20,7 +18,6 @@ impl Heuristic for Greedy {
             solution.push(v);
         }
 
-        
         make_minimal(&mut graph.clone(), solution)
     }
 }
@@ -52,7 +49,7 @@ pub struct GRCycle {}
 impl Heuristic for GRCycle {
     fn upper_bound(graph: &Graph) -> Vec<u32> {
         let mut copy = graph.clone();
-        let mut solution =  Vec::new();
+        let mut solution = Vec::new();
 
         solution.append(&mut copy.reduce());
         while let Some(cycle) = copy.find_cycle_with_fvs(&solution) {

@@ -28,9 +28,8 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
     let mut dfvs = Vec::new();
     let solution = model.solve();
     recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
-    
-    loop {
 
+    loop {
         let mut changed = false;
         while let Some(cycle) = graph.find_cycle_with_fvs(&dfvs) {
             changed = true;

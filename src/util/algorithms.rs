@@ -27,7 +27,6 @@ pub fn difference(lhs: &Vec<u32>, rhs: &Vec<u32>) -> Vec<u32> {
     result
 }
 
-
 /// Computes the set intersection between `lhs` and `rhs` in time *O(n + m)*
 /// where *n =* `lhs.len()` and *m =* `rhs.len()`. Assumes each element
 /// in `lhs` and `rhs` is distinct and `lhs` and `rhs` are in ascending order.
