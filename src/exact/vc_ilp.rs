@@ -1,13 +1,12 @@
 //! Vertex Cover ILP solver
 use crate::graph::{EdgeIter, Graph};
 use coin_cbc::{Model, Sense};
-use std::time::{Duration, Instant};
 
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
-    let start = Instant::now();
     let _out = shh::stdout();
     let mut model = Model::default();
-    model.set_parameter("sec", "450");
+    model.set_parameter("log", "0");
+
     // TODO possible optimization flags
 
     let mut vars = Vec::with_capacity(graph.total_vertices());
@@ -29,10 +28,6 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
 
     model.set_obj_sense(Sense::Minimize);
     let solution = model.solve();
-
-    if start.elapsed().as_secs() > 450 {
-        return None;
-    }
 
     Some(
         (0..vars.len())

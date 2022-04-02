@@ -1,11 +1,8 @@
 use crate::graph::Graph;
 use coin_cbc::{Col, Model, Sense, Solution};
-use std::time::{Duration, Instant};
 
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
-    let start = Instant::now();
     let mut model = Model::default();
-    model.set_parameter("sec", "450");
     model.set_parameter("log", "0");
 
     let mut vars = Vec::with_capacity(graph.total_vertices());
@@ -26,26 +23,13 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
             }
         }
     }
-    let mut ilp_duration = 0;
 
     model.set_obj_sense(Sense::Minimize);
     let mut dfvs = Vec::new();
     let solution = model.solve();
     recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
     
-    let elapsed = start.elapsed().as_secs();
-    // println!("{}s", elapsed);
-    // println!("{}", dfvs.len());
-    if elapsed > 450 {
-        return None;
-    }
-
     loop {
-        let elapsed = start.elapsed().as_secs();
-        if elapsed + ilp_duration > 450 {
-            // println!("{}s", elapsed);
-            return None;
-        }
 
         let mut changed = false;
         while let Some(cycle) = graph.find_cycle_with_fvs(&dfvs) {
@@ -64,9 +48,7 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
 
         let _out = shh::stdout();
 
-        let ilp_start = Instant::now();
         let solution = model.solve();
-        ilp_duration = ilp_start.elapsed().as_secs();
 
         recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
     }

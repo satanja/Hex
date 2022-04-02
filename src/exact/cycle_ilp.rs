@@ -5,7 +5,6 @@ use std::time::{Duration, Instant};
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
     let start = Instant::now();
     let mut model = Model::default();
-    model.set_parameter("sec", "450");
     model.set_parameter("log", "0");
 
     let mut vars = Vec::with_capacity(graph.total_vertices());
