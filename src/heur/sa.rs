@@ -1,5 +1,3 @@
-use rustc_hash::FxHashMap;
-
 use super::Heuristic;
 use crate::{
     graph::{Compressor, Graph, HeuristicReduce},
@@ -40,7 +38,7 @@ impl SimulatedAnnealing {
             graph: compressed,
             mapping,
             conf_vtoi: vec![None; vertices],
-            conf_itov: vec![None; vertices],
+            conf_itov: Vec::with_capacity(vertices),
             out_cache: vec![None; vertices],
             in_cache: vec![None; vertices],
             dfvs: (0..vertices as u32).collect(),
@@ -160,10 +158,12 @@ impl SimulatedAnnealing {
             self.conflicts_in(&vertex, m)
         };
 
+        let mut removed = false;
         for vertex in &to_remove {
             self.dfvs.insert(*vertex);
             if let Some(index) = self.conf_vtoi[*vertex as usize] {
                 self.conf_itov[index] = None;
+                removed = true;
             }
             self.conf_vtoi[*vertex as usize] = None;
 
@@ -178,31 +178,41 @@ impl SimulatedAnnealing {
             // }
         }
 
-        // Heap allocations go brrrrrrrrrr....
-        let mut new_conf_itov = Vec::with_capacity(self.conf_itov.len());
-        for j in 0..m {
-            if self.conf_itov[j] != None {
-                new_conf_itov.push(self.conf_itov[j]);
-            }
+        if m > self.conf_itov.len() {
+            self.conf_itov.push(Some(vertex));
+            self.conf_vtoi[vertex as usize] = Some(self.conf_itov.len() - 1);
+        } else {
+            self.conf_itov.insert(m, Some(vertex));
+            self.conf_vtoi[vertex as usize] = Some(m);
         }
-        new_conf_itov.push(Some(vertex));
-        for j in m..self.conf_itov.len() {
-            if self.conf_itov[j] != None {
-                new_conf_itov.push(self.conf_itov[j]);
+
+        if removed {
+            let mut last = 0;
+            for i in 0..self.conf_itov.len() {
+                if self.conf_itov[i] != None {
+                    if last != i {
+                        let vertex = self.conf_itov[i].unwrap();
+                        self.conf_itov[last] = self.conf_itov[i];
+                        self.conf_itov[i] = None;
+                        self.conf_vtoi[vertex as usize] = Some(last);
+                    }
+                    last += 1;
+                }
+            }
+
+            loop {
+                if self.conf_itov[self.conf_itov.len() - 1] == None {
+                    self.conf_itov.pop();
+                } else {
+                    break;
+                }
             }
         }
 
-        for _ in new_conf_itov.len()..new_conf_itov.capacity() {
-            new_conf_itov.push(None);
+        for i in 0..self.conf_itov.len() {
+            let vertex = self.conf_itov[i].unwrap();
+            self.conf_vtoi[vertex as usize] = Some(i);
         }
-
-        for i in 0..new_conf_itov.len() {
-            if let Some(vertex) = new_conf_itov[i] {
-                self.conf_vtoi[vertex as usize] = Some(i);
-            }
-        }
-
-        self.conf_itov = new_conf_itov;
     }
 
     fn recover_complete_solution(&mut self, mut solution: Vec<u32>) -> Vec<u32> {
