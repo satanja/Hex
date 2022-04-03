@@ -13,7 +13,7 @@ use rand::{
 
 pub struct SimulatedAnnealing {
     graph: Graph,
-    mapping: FxHashMap<u32, u32>,
+    mapping: Vec<u32>,
     conf_vtoi: Vec<Option<usize>>,
     conf_itov: Vec<Option<u32>>,
     out_cache: Vec<Option<usize>>,
@@ -32,7 +32,7 @@ impl SimulatedAnnealing {
             clone.compress()
         } else {
             let vertices = clone.total_vertices();
-            (clone, (0..vertices).map(|v| (v as u32, v as u32)).collect())
+            (clone, (0..vertices as u32).collect())
         };
 
         let vertices = compressed.total_vertices();
@@ -208,7 +208,7 @@ impl SimulatedAnnealing {
     fn recover_complete_solution(&mut self, mut solution: Vec<u32>) -> Vec<u32> {
         for i in 0..solution.len() {
             let vertex = solution[i];
-            let original = *self.mapping.get(&vertex).unwrap();
+            let original = self.mapping[vertex as usize];
             solution[i] = original;
         }
         solution.append(&mut self.reduced);

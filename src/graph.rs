@@ -1310,11 +1310,11 @@ impl<'a> Iterator for UndirEdgeIter<'a> {
 }
 
 pub trait Compressor {
-    fn compress(&self) -> (Graph, FxHashMap<u32, u32>);
+    fn compress(&self) -> (Graph, Vec<u32>);
 }
 
 impl Compressor for Graph {
-    fn compress(&self) -> (Graph, FxHashMap<u32, u32>) {
+    fn compress(&self) -> (Graph, Vec<u32>) {
         let mut map = FxHashMap::default();
         let mut adj_map = FxHashMap::default();
         for i in 0..self.total_vertices() {
@@ -1349,7 +1349,12 @@ impl Compressor for Graph {
         for (source, neighbors) in adj_map {
             graph.set_adjacency(source, neighbors);
         }
-        (graph, map.into_iter().map(|(k, v)| (v, k)).collect())
+
+        let mut vec_map = vec![0; map.len()];
+        for (k, v) in map {
+            vec_map[v as usize] = k;
+        }
+        (graph, vec_map)
     }
 }
 
