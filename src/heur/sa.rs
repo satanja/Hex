@@ -239,7 +239,7 @@ impl SimulatedAnnealing {
             let mut temp = TEMPERATURE;
             let mut nb_fail = 0;
             let mut best_len = self.graph.total_vertices();
-            let mut best_solution = Vec::new();
+            let mut best_solution = Vec::with_capacity(self.graph.total_vertices());
 
             let ud = Uniform::new(0., 1.);
 
@@ -254,7 +254,10 @@ impl SimulatedAnnealing {
                         nb_mvt += 1;
 
                         if self.dfvs.len() < best_len {
-                            best_solution = self.get_solution();
+                            best_solution.clear();
+                            for vertex in self.dfvs.iter() {
+                                best_solution.push(*vertex);
+                            }
                             best_len = best_solution.len();
                             failure = false;
                         }
