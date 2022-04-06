@@ -12,6 +12,6 @@ mod util;
 
 fn main() {
     let graph = io::read().unwrap();
-    let solution = SimulatedAnnealing::upper_bound(&graph);
+    let solution = exact::solve(graph);
     io::write(solution);
 }

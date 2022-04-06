@@ -11,11 +11,10 @@ mod io;
 mod lower;
 mod util;
 
-use heur::{Heuristic, SimulatedAnnealing};
 use std::{fs, path::PathBuf, str::FromStr};
 
 fn main() {
-    let paths = fs::read_dir("./instances/").unwrap();
+    let paths = fs::read_dir("./disconnected/").unwrap();
     let mut file_names: Vec<_> = paths
         .into_iter()
         .map(|p| p.unwrap().path().display().to_string())
@@ -26,7 +25,7 @@ fn main() {
         let pb = PathBuf::from_str(&path).unwrap();
 
         let graph = io::read_from_path(&pb).unwrap();
-        let upper_bound = SimulatedAnnealing::upper_bound(&graph);
+        let upper_bound = exact::solve(graph);
         println!("{}", upper_bound.len());
     }
 }

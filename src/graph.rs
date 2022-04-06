@@ -1,4 +1,7 @@
-use crate::util::{self, algorithms::intersection};
+use crate::util::{
+    self,
+    algorithms::{difference, intersection},
+};
 use coin_cbc::{Model, Sense};
 use core::fmt;
 use rand::prelude::SliceRandom;
@@ -1066,14 +1069,43 @@ impl Graph {
                 class.push(i as u32);
                 has_twins = true;
             } else {
-                classes.insert(list, Vec::new());
+                classes.insert(list, vec![i as u32]);
             }
         }
 
         if has_twins {
             for (_, mut twins) in classes {
-                self.remove_vertices(&twins);
-                forced.append(&mut twins);
+                if twins.len() == 1 {
+                    continue;
+                }
+                let twin_set: FxHashSet<_> = twins.iter().copied().collect();
+                let first = twins[0];
+
+                // we use the fact that all vertices see the same neighbours outside twins
+                let l = difference(&self.adj[first as usize], &twins).len();
+                let mut undir_edges = 0;
+                let mut dir_edges = twins.len() * l;
+
+                // Reduction rule is only applicable if the cut (T, N(T)\T) has
+                // only undirected or directed edges, but not both.
+                if l != 0 {
+                    for vertex in &twins {
+                        for source in &self.rev_adj[*vertex as usize] {
+                            if !twin_set.contains(source)
+                                && self.adj[*vertex as usize].contains(source)
+                            {
+                                undir_edges += 1;
+                                dir_edges -= 1;
+                            }
+                        }
+                    }
+                }
+
+                if undir_edges == 0 || dir_edges == 0 {
+                    twins.pop();
+                    self.remove_vertices(&twins);
+                    forced.append(&mut twins);
+                }
             }
         }
         forced
@@ -1163,15 +1195,6 @@ impl Reducable for Graph {
                 upper_bound -= 1;
                 forced.push(vertex);
             }
-
-            if reduced {
-                continue;
-            }
-
-            // if let Some(mut vertices) = self.exact_vertex_cover_reduction() {
-            //     forced.append(&mut vertices);
-            //     reduced = true;
-            // }
         }
         Some(forced)
     }

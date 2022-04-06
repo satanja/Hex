@@ -1,6 +1,6 @@
 use crate::{
     graph::{Graph, Reducable},
-    heur::{GRMaxDegree, Heuristic},
+    heur::{Heuristic, SimulatedAnnealing},
     lower,
 };
 
@@ -37,7 +37,7 @@ pub fn branch_and_bound(
                 return Some(solution);
             }
             Some(false) => {
-                let mut solution = a.unwrap();
+                let mut solution = b.unwrap();
                 solution.append(&mut neighbors);
                 return Some(solution);
             }
@@ -73,21 +73,22 @@ fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> 
     // first, reduce the graph as much as possible
     let reduce_op = graph.reduce(upper_bound);
     if reduce_op == None {
-        println!("killed: reduction exceeds upper bound");
+        // println!("killed: reduction exceeds upper bound");
         return None;
     }
     let mut reduced = reduce_op.unwrap();
 
     if !graph.is_cyclic() {
-        println!("found solution");
+        // println!("found solution");
         return Some(reduced);
     }
 
     let mut new_upper = upper_bound - reduced.len();
-    let lb = lower::lower_bound(graph);
-    if lb > new_upper {
-        return None;
-    }
+    // let lb = lower::lower_bound(graph);
+    // if lb > new_upper {
+    //     // println!("shit");
+    //     return None;
+    // }
 
     // branch on the stars if possible
     if let Some((vertex, mut neighbors)) = graph.max_degree_star() {
@@ -115,14 +116,14 @@ fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> 
                 let mut solution = a.unwrap();
                 solution.push(vertex);
                 solution.append(&mut reduced);
-                println!("a: {}", solution.len());
+                // println!("a: {}", solution.len());
                 return Some(solution);
             }
             Some(false) => {
                 let mut solution = b.unwrap();
                 solution.append(&mut neighbors);
                 solution.append(&mut reduced);
-                println!("b: {}", solution.len());
+                // println!("b: {}", solution.len());
                 return Some(solution);
             }
         }
@@ -156,11 +157,12 @@ fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> 
 }
 
 pub fn solve(graph: &mut Graph) -> Vec<u32> {
-    let mut solution = graph.reduce(graph.vertices()).unwrap();
+    let ub = SimulatedAnnealing::upper_bound(&graph);
+    let mut solution = graph.reduce(ub.len()).unwrap();
     let components = graph.tarjan(true).unwrap();
     for component in components {
         let mut subgraph = graph.induced_subgraph(component);
-        let ub = GRMaxDegree::upper_bound(&subgraph);
+        let ub = SimulatedAnnealing::upper_bound(&subgraph);
         let mut sub_solution = branch_and_reduce(&mut subgraph, ub.len()).unwrap();
         solution.append(&mut sub_solution);
     }
@@ -251,6 +253,16 @@ mod tests {
         let n = 5;
         let mut graph = generate_clique(n);
         let solution = branch_and_reduce(&mut graph, n).unwrap();
+        assert_eq!(solution.len(), n - 1);
+        assert!(graph.is_acyclic_with_fvs(&solution));
+    }
+
+    #[test]
+    fn branch_and_bound_test_004() {
+        let n = 5;
+        let mut graph = generate_clique(n);
+        let ub = SimulatedAnnealing::upper_bound(&graph);
+        let solution = branch_and_bound(&mut graph, 0, ub.len()).unwrap();
         assert_eq!(solution.len(), n - 1);
         assert!(graph.is_acyclic_with_fvs(&solution));
     }
