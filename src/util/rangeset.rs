@@ -68,10 +68,6 @@ impl RangeSet {
     pub fn iter(&self) -> impl Iterator<Item = &u32> {
         self.set.iter()
     }
-
-    pub fn clone_set(&self) -> Vec<u32> {
-        self.set.clone()
-    }
 }
 
 impl Index<usize> for RangeSet {

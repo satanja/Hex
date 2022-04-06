@@ -225,10 +225,6 @@ impl SimulatedAnnealing {
         solution
     }
 
-    fn get_solution(&self) -> Vec<u32> {
-        self.dfvs.clone_set()
-    }
-
     fn upper_bound(&mut self, _graph: &Graph) -> Vec<u32> {
         if !self.graph.is_empty() {
             const TEMPERATURE: f64 = 0.6;
