@@ -152,7 +152,8 @@ impl Graph {
     //     }
     // }
 
-    pub fn set_adjacency(&mut self, source: u32, targets: Vec<u32>) {
+    pub fn set_adjacency(&mut self, source: u32, mut targets: Vec<u32>) {
+        targets.sort();
         for vertex in &targets {
             self.rev_adj[*vertex as usize].push(source);
         }
@@ -1600,10 +1601,142 @@ impl Statistics for Graph {
     }
 }
 
+pub trait EdgeCycleCover {
+    /// Returns a distinct set of cycles that covers as many edges as possible.
+    fn edge_cycle_cover(&self) -> Vec<Vec<u32>>;
+}
+
+impl EdgeCycleCover for Graph {
+    fn edge_cycle_cover(&self) -> Vec<Vec<u32>> {
+        let mut cycles = FxHashSet::default();
+        let mut covered_edges = FxHashSet::default();
+        for i in 0..self.total_vertices() {
+            if self.deleted_vertices[i] {
+                continue;
+            }
+            for source in &self.adj[i] {
+                // if covered_edges.contains(&(i as u32, *source)) {
+                //     continue;
+                // }
+
+                let mut queue = VecDeque::new();
+                let mut discovered = vec![None; self.total_vertices()];
+                queue.push_back(*source);
+
+                let target = i as u32;
+                'main_loop: while let Some(vertex) = queue.pop_front() {
+                    for next in &self.adj[vertex as usize] {
+                        if *next == target {
+                            let mut cycle = vec![target];
+                            let mut current_vertex = vertex;
+                            while current_vertex != *source {
+                                cycle.push(current_vertex);
+                                current_vertex = discovered[current_vertex as usize].unwrap();
+                            }
+                            cycle.push(*source);
+                            cycle.reverse();
+                            cycle.sort();
+
+                            for i in 0..cycle.len() - 1 {
+                                let start = cycle[i];
+                                let end = cycle[i + 1];
+                                covered_edges.insert((start, end));
+                            }
+                            covered_edges.insert((target, *source));
+
+                            cycles.insert(cycle);
+                            break 'main_loop;
+                        }
+                        if discovered[*next as usize] == None {
+                            discovered[*next as usize] = Some(vertex);
+                            queue.push_back(*next);
+                        }
+                    }
+                }
+            }
+        }
+        cycles.into_iter().collect()
+    }
+}
+
+pub trait TwinCliques {
+    fn twin_cliques(&self) -> Vec<Vec<u32>>;
+}
+
+impl TwinCliques for Graph {
+    fn twin_cliques(&self) -> Vec<Vec<u32>> {
+        let mut classes: FxHashMap<Vec<u32>, Vec<u32>> = FxHashMap::default();
+        let mut cliques = Vec::new();
+
+        let mut has_twins = false;
+        for i in 0..self.adj.len() {
+            if self.deleted_vertices[i] {
+                continue;
+            }
+
+            let mut list = self.adj[i].clone();
+            // closed neighborhood
+            list.push(i as u32);
+            list.sort_unstable();
+
+            if let Some(class) = classes.get_mut(&list) {
+                class.push(i as u32);
+                has_twins = true;
+            } else {
+                classes.insert(list, vec![i as u32]);
+            }
+        }
+
+        if has_twins {
+            for (_, twins) in classes {
+                if twins.len() == 1 {
+                    continue;
+                }
+                cliques.push(twins);
+            }
+        }
+        cliques
+    }
+}
+
+pub trait ThreeClique {
+    fn three_clique(&self) -> Vec<(u32, u32, u32)>;
+}
+
+impl ThreeClique for Graph {
+    fn three_clique(&self) -> Vec<(u32, u32, u32)> {
+        let mut cliques = Vec::new();
+        for i in 0..self.adj.len() {
+            if self.deleted_vertices[i] || self.adj[i].len() == 0 {
+                continue;
+            }
+            'second_loop: for j in i + 1 ..self.adj.len() {
+                if self.deleted_vertices[j] || self.adj[j].len() == 0 {
+                    continue;
+                }
+                for k in j + 1..self.adj.len() {
+                    if self.deleted_vertices[k] || self.adj[k].len() == 0 {
+                        continue;
+                    }
+                    let a = self.adj[i].contains(&(j as u32)) && self.adj[i].contains(&(k as u32));
+                    let b = self.adj[j].contains(&(i as u32)) && self.adj[j].contains(&(k as u32));
+                    let c = self.adj[k].contains(&(i as u32)) && self.adj[k].contains(&(j as u32));
+                    if a && b && c {
+                        cliques.push((i as u32, j as u32, k as u32));
+                        // break 'second_loop;
+                    }
+                }
+            }
+        }
+
+        cliques
+    }
+}
 #[cfg(test)]
 mod tests {
     use crate::graph::Statistics;
 
+    use super::EdgeCycleCover;
     use super::EdgeIter;
     use super::Graph;
     use super::Reducable;
@@ -1867,5 +2000,15 @@ mod tests {
         graph.add_arc(1, 2);
         graph.add_arc(2, 1);
         assert_eq!(graph.compressed_unreachable_vertices(), 0);
+    }
+
+    #[test]
+    fn edge_cycle_cover_test_001() {
+        let mut graph = Graph::new(3);
+        graph.add_arc(0, 1);
+        graph.add_arc(1, 2);
+        graph.add_arc(2, 0);
+        let cycle_cover = graph.edge_cycle_cover();
+        assert_eq!(cycle_cover, vec![vec![0, 1, 2]]);
     }
 }
