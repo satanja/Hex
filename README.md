@@ -5,14 +5,25 @@ compute a minimum-sized subset X of V such that the induced graph of G[V \ X] is
 ## Installation
 
 ## Dependencies
+The project relies on interfacing with the [Coin-or CBC library](https://github.com/coin-or/COIN-OR-OptimizationSuite)
+* [Coin-or cbc library](https://github.com/coin-or/COIN-OR-OptimizationSuite), which can be installed with apt using 
+    
+    ```$ apt-get install coinor-libcbc-dev```.
 
-## Optil
+Other main dependencies are fetched and compiled using cargo. These dependencies are `rustc-hash`, `rand`, `shh` (to force cbc to be quiet), and `coin_cbc` for the rust bindings to cbc.
+
+For development purposes, cargo also installs `cpu_time`, `rayon` and `assert_cmd`. These dependencies are not strictly necessary for the solver.
+
+## Building
+The solver can be built using `cargo build --release`. 
+
+# Optil
 Unfortunately, the optil.io server is running on Ubuntu 16.04 (last checked in April 2022), which comes with the caveat that building the project on your current favorite linux distro compiles and links the binaries against newer versions of `glibc` and `coinor-libcbc-dev`. To remedy this, we use a docker container that is running Ubuntu 16.04, we build the binary in that environment, and extract it. This ensures the binary is linked to the correct versions of `glibc` and `coinor-libcbc-dev` without the need of creating a VM.
 
 ### Requirements
+* [Podman](https://podman.io/getting-started/installation)
 
-
-### Building the binary
+### Building
 The binary can be built using 
 ```
 $ ./build_optil.sh
