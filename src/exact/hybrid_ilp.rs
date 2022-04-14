@@ -4,6 +4,11 @@ use coin_cbc::{Col, Model, Sense, Solution};
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
     let mut model = Model::default();
     model.set_parameter("log", "0");
+    
+    // Optil can only use coinor-libcbc-dev version 2.8.12, which has
+    // a bugged preprocessor
+    #[cfg(feature = "cbc-old")]
+    model.set_parameter("preprocess", "off");
 
     let mut vars = Vec::with_capacity(graph.total_vertices());
     for _ in 0..graph.total_vertices() {

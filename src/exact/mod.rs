@@ -13,24 +13,14 @@ pub fn solve(mut graph: Graph) -> Vec<u32> {
         return solution;
     }
 
-    let mut exact = backtracking::solve(&mut graph);
-    solution.append(&mut exact);
-    // if graph.is_undirected() {
-    //     // println!("undirected");
-    //     // vc_solver::solve(&graph, &mut solution);
-    //     if let Some(mut reduced_solution) = vc_ilp::solve(&graph) {
-    //         solution.append(&mut reduced_solution);
-    //     } else {
-    //         println!("time limit exceeded");
-    //     }
-    // } else {
-    //     // return Vec::new();
-    //     if let Some(mut reduced_solution) = hybrid_ilp::solve(&graph) {
-    //         solution.append(&mut reduced_solution);
-    //     } else {
-    //         println!("time limit exceeded");
-    //     }
-    // }
-    // exact
+    if graph.is_undirected() {
+        if let Some(mut reduced_solution) = vc_ilp::solve(&graph) {
+            solution.append(&mut reduced_solution);
+        }
+    } else {
+        if let Some(mut reduced_solution) = hybrid_ilp::solve(&graph) {
+            solution.append(&mut reduced_solution);
+        }
+    }
     solution
 }

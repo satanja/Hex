@@ -14,8 +14,9 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /~/dfvstritus
 COPY benches/ benches/
+COPY instances/ instances/
 COPY Cargo.lock Cargo.lock
 COPY Cargo.toml Cargo.toml
 COPY src/ src/
 
-RUN cargo build --release
+RUN cargo build --release --features cbc-old

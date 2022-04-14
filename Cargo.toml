@@ -6,6 +6,9 @@ edition = "2021"
 default-run = "dfvstritus"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = []
+cbc-old = []
 
 [dependencies]
 rustc-hash = "1.1.0"
