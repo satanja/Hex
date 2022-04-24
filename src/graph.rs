@@ -1701,24 +1701,21 @@ pub trait ThreeClique {
 impl ThreeClique for Graph {
     fn three_clique(&self) -> Vec<(u32, u32, u32)> {
         let mut cliques = Vec::new();
-        for i in 0..self.adj.len() {
-            if self.deleted_vertices[i] || self.adj[i].len() == 0 {
-                continue;
-            }
-            'second_loop: for j in i + 1..self.adj.len() {
-                if self.deleted_vertices[j] || self.adj[j].len() == 0 {
+        let stars = self.stars();
+
+        for (center, neighbors) in stars {
+            for i in 0..neighbors.len() {
+                let a = neighbors[i];
+                if a < center {
                     continue;
                 }
-                for k in j + 1..self.adj.len() {
-                    if self.deleted_vertices[k] || self.adj[k].len() == 0 {
-                        continue;
-                    }
-                    let a = self.adj[i].contains(&(j as u32)) && self.adj[i].contains(&(k as u32));
-                    let b = self.adj[j].contains(&(i as u32)) && self.adj[j].contains(&(k as u32));
-                    let c = self.adj[k].contains(&(i as u32)) && self.adj[k].contains(&(j as u32));
-                    if a && b && c {
-                        cliques.push((i as u32, j as u32, k as u32));
-                        // break 'second_loop;
+                for j in i + 1..neighbors.len() {
+                    let b = neighbors[j];
+                    if b > a
+                        && self.adj[a as usize].contains(&b)
+                        && self.adj[b as usize].contains(&a)
+                    {
+                        cliques.push((center, a, b));
                     }
                 }
             }
