@@ -614,48 +614,43 @@ impl Graph {
                 }
             }
         }
-        singletons.sort_unstable();
+        singletons.sort();
         self.remove_vertices(&singletons);
 
         // compute the induced graph by parts of the strongly connected components
         // SCCs may share edges, but they're irrelevant
-        // let mut removed_edges = false;
-        // for component in components {
-        //     if component.len() == 1 {
-        //         continue;
-        //     }
+        let mut removed_edges = false;
+        for component in components {
+            // we can skip all singletons, some may have self-loops, others are already removed
+            if component.len() == 1 {
+                continue;
+            }
 
-        //     // TODO possibly optimize
-        //     for vertex in &component {
-        //         let mut new_adj = Vec::new();
-        //         for j in 0..self.adj[*vertex as usize].len() {
-        //             let neighbor = self.adj[*vertex as usize][j];
-        //             if component.contains(&neighbor) {
-        //                 new_adj.push(neighbor);
-        //             } else {
-        //                 // we found a neighbor not beloning to the component
-        //                 // we remove at least one edge from the graph
-        //                 removed_edges = true;
-        //             }
-        //         }
-        //         self.adj[*vertex as usize] = new_adj;
-        //     }
-        // }
+            for vertex in &component {
+                let new_adj = intersection(&self.adj[*vertex as usize], &component);
+                if new_adj.len() != self.adj[*vertex as usize].len() {
+                    removed_edges = true;
+                    self.adj[*vertex as usize] = new_adj;
+                }
+            }
+        }
 
-        // // only change the reverse adjacency list if actual progress has been
-        // // made
-        // if removed_edges {
-        //     // rebuild reverse adj
-        //     self.rev_adj = vec![Vec::new(); self.total_vertices()];
-        //     for i in 0..self.adj.len() {
-        //         for j in 0..self.adj[i].len() {
-        //             let target = self.adj[i][j];
-        //             if let Err(index) = self.rev_adj[target as usize].binary_search(&(i as u32)) {
-        //                 self.rev_adj[target as usize].insert(index, i as u32);
-        //             }
-        //         }
-        //     }
-        // }
+        // only change the reverse adjacency list if actual progress has been
+        // made
+        if removed_edges {
+            // rebuild reverse adj
+            self.rev_adj = vec![Vec::new(); self.total_vertices()];
+            for i in 0..self.adj.len() {
+                for j in 0..self.adj[i].len() {
+                    let target = self.adj[i][j];
+                    self.rev_adj[target as usize].push(i as u32);
+                }
+            }
+
+            for rev_list in &mut self.rev_adj {
+                rev_list.sort();
+            }
+        }
         result
     }
 
@@ -1710,7 +1705,7 @@ impl ThreeClique for Graph {
             if self.deleted_vertices[i] || self.adj[i].len() == 0 {
                 continue;
             }
-            'second_loop: for j in i + 1 ..self.adj.len() {
+            'second_loop: for j in i + 1..self.adj.len() {
                 if self.deleted_vertices[j] || self.adj[j].len() == 0 {
                     continue;
                 }

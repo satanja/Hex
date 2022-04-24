@@ -11,7 +11,7 @@ pub fn read() -> Result<Graph> {
     let stdin = io::stdin();
 
     stdin.read_line(&mut line)?;
-    while line.starts_with('%') {
+    while line.starts_with("%") {
         line.clear();
         stdin.read_line(&mut line)?;
     }
@@ -31,7 +31,7 @@ pub fn read() -> Result<Graph> {
     let mut index = 0;
     while index < vertices {
         stdin.read_line(&mut line)?;
-        while line.starts_with('%') {
+        while line.starts_with("%") {
             line.clear();
             stdin.read_line(&mut line)?;
         }
@@ -55,7 +55,7 @@ pub fn read_from_path(path: &PathBuf) -> Result<Graph> {
     let mut reader = BufReader::new(file);
 
     reader.read_line(&mut line)?;
-    while line.starts_with('%') {
+    while line.starts_with("%") {
         line.clear();
         reader.read_line(&mut line)?;
     }
@@ -75,7 +75,7 @@ pub fn read_from_path(path: &PathBuf) -> Result<Graph> {
     let mut index = 0;
     while index < vertices {
         reader.read_line(&mut line)?;
-        while line.starts_with('%') {
+        while line.starts_with("%") {
             line.clear();
             reader.read_line(&mut line)?;
         }
