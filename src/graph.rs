@@ -630,6 +630,7 @@ impl Graph {
                 let new_adj = intersection(&self.adj[*vertex as usize], &component);
                 if new_adj.len() != self.adj[*vertex as usize].len() {
                     removed_edges = true;
+                    result = true;
                     self.adj[*vertex as usize] = new_adj;
                 }
             }
@@ -1126,6 +1127,32 @@ impl Graph {
         }
 
         induced
+    }
+
+    pub fn remove_undirected_edges(&mut self, stars: Vec<(u32, Vec<u32>)>) {
+        for (source, neighbors) in stars {
+            let red_source_adj = difference(&self.adj[source as usize], &neighbors);
+            self.adj[source as usize] = red_source_adj;
+            
+            let red_source_rev_adj = difference(&self.rev_adj[source as usize], &neighbors);
+            self.rev_adj[source as usize] = red_source_rev_adj;
+
+            for neighbor in neighbors {
+                for i in 0..self.adj[neighbor as usize].len() {
+                    if self.adj[neighbor as usize][i] == source {
+                        self.adj[neighbor as usize].remove(i);
+                        break;
+                    }
+                }
+
+                for i in 0..self.rev_adj[neighbor as usize].len() {
+                    if self.rev_adj[neighbor as usize][i] == source {
+                        self.rev_adj[neighbor as usize].remove(i);
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1720,7 +1747,6 @@ impl ThreeClique for Graph {
                 }
             }
         }
-
         cliques
     }
 }

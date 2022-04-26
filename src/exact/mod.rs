@@ -1,5 +1,6 @@
 use crate::graph::{Graph, HeuristicReduce, Undirected};
 
+mod adv_ilp;
 mod backtracking;
 mod cycle_ilp;
 mod heur_ilp;
@@ -18,7 +19,7 @@ pub fn solve(mut graph: Graph) -> Vec<u32> {
             solution.append(&mut reduced_solution);
         }
     } else {
-        if let Some(mut reduced_solution) = hybrid_ilp::solve(&graph) {
+        if let Some(mut reduced_solution) = adv_ilp::solve(&mut graph) {
             solution.append(&mut reduced_solution);
         }
     }
