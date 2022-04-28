@@ -25,7 +25,7 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
     
     loop {
         let stars = graph.stars();
-        if stars.len() == 0 {
+        if stars.is_empty() {
             break;
         }
 
@@ -43,7 +43,7 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         println!("{}", compressed);
         
         let mut reduced = graph.reduce(vertices).unwrap();
-        if reduced.len() == 0 {
+        if reduced.is_empty() {
             break;
         }
         forced.append(&mut reduced);

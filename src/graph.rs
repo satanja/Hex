@@ -153,7 +153,7 @@ impl Graph {
     // }
 
     pub fn set_adjacency(&mut self, source: u32, mut targets: Vec<u32>) {
-        targets.sort();
+        targets.sort_unstable();
         for vertex in &targets {
             self.rev_adj[*vertex as usize].push(source);
         }
@@ -614,7 +614,7 @@ impl Graph {
                 }
             }
         }
-        singletons.sort();
+        singletons.sort_unstable();
         self.remove_vertices(&singletons);
 
         // compute the induced graph by parts of the strongly connected components
@@ -649,7 +649,7 @@ impl Graph {
             }
 
             for rev_list in &mut self.rev_adj {
-                rev_list.sort();
+                rev_list.sort_unstable();
             }
         }
         result
@@ -1657,7 +1657,7 @@ impl EdgeCycleCover for Graph {
                             }
                             cycle.push(*source);
                             cycle.reverse();
-                            cycle.sort();
+                            cycle.sort_unstable();
 
                             for i in 0..cycle.len() - 1 {
                                 let start = cycle[i];

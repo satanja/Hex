@@ -18,10 +18,8 @@ pub fn solve(mut graph: Graph) -> Vec<u32> {
         if let Some(mut reduced_solution) = vc_ilp::solve(&graph) {
             solution.append(&mut reduced_solution);
         }
-    } else {
-        if let Some(mut reduced_solution) = adv_ilp::solve(&mut graph) {
-            solution.append(&mut reduced_solution);
-        }
+    } else if let Some(mut reduced_solution) = adv_ilp::solve(&mut graph) {
+        solution.append(&mut reduced_solution);
     }
     solution
 }

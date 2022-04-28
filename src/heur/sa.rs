@@ -19,9 +19,20 @@ pub struct SimulatedAnnealing {
     dfvs: RangeSet,
     rng: StdRng,
     reduced: Vec<u32>,
+    iter: Option<usize>,
 }
 
 impl SimulatedAnnealing {
+    fn with_max_iter(graph: &Graph, iter: usize) -> SimulatedAnnealing {
+        let mut sa = Self::new(graph, true);
+        sa.set_max_iter(iter);
+        sa
+    }
+
+    fn set_max_iter(&mut self, iter: usize) {
+        self.iter = Some(iter);
+    }
+
     fn new(graph: &Graph, reduce_and_compress: bool) -> SimulatedAnnealing {
         let mut clone = graph.clone();
         let mut reduced = Vec::new();
@@ -44,6 +55,7 @@ impl SimulatedAnnealing {
             dfvs: (0..vertices as u32).collect(),
             rng: StdRng::seed_from_u64(0),
             reduced,
+            iter: None,
         }
     }
 
@@ -239,46 +251,93 @@ impl SimulatedAnnealing {
 
             let ud = Uniform::new(0., 1.);
 
-            loop {
-                let mut nb_mvt = 0;
-                let mut failure = true;
-                loop {
-                    let (vertex, m, is_in) = self.random_move();
-                    let delta = self.delta(&vertex, m);
-                    if delta <= 0 || f64::exp(-delta as f64 / temp) >= ud.sample(&mut self.rng) {
-                        self.apply_move(vertex, m, is_in);
-                        nb_mvt += 1;
-
-                        if self.dfvs.len() < best_len {
-                            best_solution.clear();
-                            for vertex in self.dfvs.iter() {
-                                best_solution.push(*vertex);
-                            }
-                            best_len = best_solution.len();
-                            failure = false;
+            if let Some(max_iter) = self.iter {
+                let mut iter = 0;
+                'main_loop: loop {
+                    let mut nb_mvt = 0;
+                    let mut failure = true;
+                    loop {
+                        if iter == max_iter {
+                            break 'main_loop;
                         }
+
+                        let (vertex, m, is_in) = self.random_move();
+                        let delta = self.delta(&vertex, m);
+                        if delta <= 0 || f64::exp(-delta as f64 / temp) >= ud.sample(&mut self.rng)
+                        {
+                            self.apply_move(vertex, m, is_in);
+                            nb_mvt += 1;
+
+                            if self.dfvs.len() < best_len {
+                                best_solution.clear();
+                                for vertex in self.dfvs.iter() {
+                                    best_solution.push(*vertex);
+                                }
+                                best_len = best_solution.len();
+                                failure = false;
+                            }
+                        }
+                        if nb_mvt == max_mvt {
+                            break;
+                        }
+                        iter += 1;
                     }
-                    if nb_mvt == max_mvt {
+                    if failure {
+                        nb_fail += 1;
+                    } else {
+                        nb_fail = 0;
+                    }
+                    temp *= ALPHA;
+
+                    if nb_fail == FAILS {
                         break;
                     }
                 }
-                if failure {
-                    nb_fail += 1;
-                } else {
-                    nb_fail = 0;
-                }
-                temp *= ALPHA;
+                best_solution = self.recover_complete_solution(best_solution);
+                best_solution
+            } else {
+                loop {
+                    let mut nb_mvt = 0;
+                    let mut failure = true;
+                    loop {
+                        let (vertex, m, is_in) = self.random_move();
+                        let delta = self.delta(&vertex, m);
+                        if delta <= 0 || f64::exp(-delta as f64 / temp) >= ud.sample(&mut self.rng)
+                        {
+                            self.apply_move(vertex, m, is_in);
+                            nb_mvt += 1;
 
-                if nb_fail == FAILS {
-                    break;
+                            if self.dfvs.len() < best_len {
+                                best_solution.clear();
+                                for vertex in self.dfvs.iter() {
+                                    best_solution.push(*vertex);
+                                }
+                                best_len = best_solution.len();
+                                failure = false;
+                            }
+                        }
+                        if nb_mvt == max_mvt {
+                            break;
+                        }
+                    }
+                    if failure {
+                        nb_fail += 1;
+                    } else {
+                        nb_fail = 0;
+                    }
+                    temp *= ALPHA;
+
+                    if nb_fail == FAILS {
+                        break;
+                    }
                 }
+                best_solution = self.recover_complete_solution(best_solution);
+                // With the current parameters, we are usually finding a minimal
+                // solution anyways, even though we have no guarantee that it is a
+                // minimal solution.
+                // best_solution = make_minimal(&mut graph.clone(), best_solution);
+                best_solution
             }
-            best_solution = self.recover_complete_solution(best_solution);
-            // With the current parameters, we are usually finding a minimal
-            // solution anyways, even though we have no guarantee that it is a
-            // minimal solution.
-            // best_solution = make_minimal(&mut graph.clone(), best_solution);
-            best_solution
         } else {
             self.reduced.clone()
         }
