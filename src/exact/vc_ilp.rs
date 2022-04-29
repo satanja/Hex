@@ -36,7 +36,7 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
 
     Some(
         (0..vars.len())
-            .filter(|i| solution.col(vars[*i]) >= 0.95)
+            .filter(|i| solution.col(vars[*i]) >= 0.9995)
             .map(|i| i as u32)
             .collect(),
     )

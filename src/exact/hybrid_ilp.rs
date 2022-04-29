@@ -50,7 +50,7 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
             break;
         }
 
-        let _out = shh::stdout();
+        // let _out = shh::stdout();
 
         let solution = model.solve();
 
@@ -62,7 +62,7 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
 fn recover_solution(solution: &Solution, vars: &Vec<Col>, dfvs: &mut Vec<u32>, vertices: usize) {
     dfvs.clear();
     for i in 0..vertices {
-        if solution.col(vars[i]) >= 0.95 {
+        if solution.col(vars[i]) >= 0.9995 {
             dfvs.push(i as u32);
         }
     }
