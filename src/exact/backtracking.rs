@@ -84,11 +84,11 @@ fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> 
     }
 
     let mut new_upper = upper_bound - reduced.len();
-    // let lb = lower::lower_bound(graph);
-    // if lb > new_upper {
-    //     // println!("shit");
-    //     return None;
-    // }
+    let lb = lower::lower_bound(graph);
+    if lb > new_upper {
+        // println!("shit");
+        return None;
+    }
 
     // branch on the stars if possible
     if let Some((vertex, mut neighbors)) = graph.max_degree_star() {

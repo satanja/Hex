@@ -27,6 +27,7 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
     }
 
     let solution = model.solve();
+    
     recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
 
     loop {

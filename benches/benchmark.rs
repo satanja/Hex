@@ -49,8 +49,8 @@ fn main() {
                 // MOD: use real time instead of CPU time, may change in the future
                 let time = std::time::Instant::now();
                 let report = match solve_one(&entry.path(), time_limit) {
-                    Ok(k) => format!("{},time={:.1}", k, time.elapsed().as_secs_f32()),
-                    Err(_) => format!(" ERROR \ttime={:.1}", time.elapsed().as_secs_f32(),),
+                    Ok(k) => format!("{},{:.3}", k, time.elapsed().as_secs_f32()),
+                    Err(_) => format!(" ERROR {:.3}", time.elapsed().as_secs_f32(),),
                 };
 
                 let out = io::stdout();

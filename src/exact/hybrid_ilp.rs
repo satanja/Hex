@@ -1,4 +1,4 @@
-use crate::graph::Graph;
+use crate::graph::{Graph, EdgeCycleCover};
 use coin_cbc::{Col, Model, Sense, Solution};
 
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
@@ -34,6 +34,25 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
     let solution = model.solve();
     recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
 
+    if graph.is_acyclic_with_fvs(&dfvs) {
+        return Some(dfvs);
+    }
+
+    for cycle in graph.edge_cycle_cover() {
+        let cstr = model.add_row();
+        model.set_row_lower(cstr, 1.);
+        for vertex in cycle {
+            model.set_weight(cstr, vars[vertex as usize], 1.);
+        }
+    }
+
+    let solution = model.solve();
+    recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
+    
+    if graph.is_acyclic_with_fvs(&dfvs) {
+        return Some(dfvs);
+    }
+
     loop {
         let mut changed = false;
         while let Some(cycle) = graph.find_cycle_with_fvs(&dfvs) {
@@ -50,7 +69,7 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
             break;
         }
 
-        // let _out = shh::stdout();
+        let _out = shh::stdout();
 
         let solution = model.solve();
 
