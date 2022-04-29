@@ -157,7 +157,7 @@ fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> 
 }
 
 pub fn solve(graph: &mut Graph) -> Vec<u32> {
-    let ub = SimulatedAnnealing::upper_bound(&graph);
+    let ub = SimulatedAnnealing::upper_bound(graph);
     let mut solution = graph.reduce(ub.len()).unwrap();
     let components = graph.tarjan(true).unwrap();
     for component in components {
