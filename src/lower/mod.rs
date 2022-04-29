@@ -1,5 +1,5 @@
 //! Module to compute lower bounds for the graph
-use crate::graph::{Graph, Undirected};
+use crate::graph::{Graph};
 mod ecc_rilp;
 mod cycle_rilp;
 mod vc_rilp;

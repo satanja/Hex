@@ -1061,7 +1061,7 @@ impl Graph {
         }
 
         if has_twins {
-            for (_, mut twins) in classes {
+            for (_, twins) in classes {
                 if twins.len() == 1 {
                     continue;
                 }

@@ -1,4 +1,4 @@
-use crate::graph::{Graph, HeuristicReduce, Undirected};
+use crate::graph::{Graph, HeuristicReduce};
 
 mod backtracking;
 mod cycle_ilp;

@@ -1,6 +1,5 @@
-use crate::graph::{Graph, Reducable, Compressor, EdgeCycleCover};
+use crate::graph::{EdgeCycleCover, Graph, Reducable};
 use coin_cbc::{Col, Model, Sense, Solution};
-use crate::heur::{SimulatedAnnealing, Heuristic};
 use rustc_hash::FxHashSet;
 
 pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
@@ -24,7 +23,7 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
     let mut constraints = Vec::new();
     let mut constraint_map = vec![Vec::new(); vertices];
     let mut forced = Vec::new();
-    
+
     loop {
         let stars = graph.stars();
         if stars.is_empty() {
@@ -45,7 +44,7 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         // break;
         graph.mark_forbidden(&sources);
         graph.remove_undirected_edges(stars);
-        
+
         let mut reduced = graph.reduce(vertices).unwrap();
         if reduced.is_empty() {
             break;
@@ -53,7 +52,7 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         forced.append(&mut reduced);
     }
     let mut forced_constraints = FxHashSet::default();
-    
+
     for vertex in &forced {
         for constraint in &constraint_map[*vertex as usize] {
             forced_constraints.insert(*constraint);
@@ -62,7 +61,7 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
 
     for i in 0..constraints.len() {
         if forced_constraints.contains(&i) {
-           continue; 
+            continue;
         }
 
         let list = constraints[i];
@@ -79,12 +78,12 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
     model.set_obj_sense(Sense::Minimize);
     let solution = model.solve();
     recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
-    
+
     if graph.is_acyclic_with_fvs(&dfvs) {
         dfvs.append(&mut forced);
         return Some(dfvs);
     }
-    
+
     for cycle in graph.edge_cycle_cover() {
         let cstr = model.add_row();
         model.set_row_lower(cstr, 1.);
@@ -93,10 +92,9 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         }
     }
 
-
     let solution = model.solve();
     recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
-    
+
     if graph.is_acyclic_with_fvs(&dfvs) {
         dfvs.append(&mut forced);
         return Some(dfvs);
