@@ -1,15 +1,13 @@
-use crate::graph::{Graph, Reducable, Compressor};
+use crate::graph::{Graph, Reducable, Compressor, EdgeCycleCover};
 use coin_cbc::{Col, Model, Sense, Solution};
+use crate::heur::{SimulatedAnnealing, Heuristic};
 use rustc_hash::FxHashSet;
 
 pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
     let mut model = Model::default();
     model.set_parameter("log", "0");
-    
-    // Optil can only use coinor-libcbc-dev version 2.8.12, which has
-    // a bugged preprocessor
-    #[cfg(feature = "cbc-old")]
-    model.set_parameter("preprocess", "off");
+    // let _out = shh::stdout();
+    // let upper_bound = SimulatedAnnealing::upper_bound(&graph);
 
     let vertices = graph.total_vertices();
     let mut vars = Vec::with_capacity(vertices);
@@ -18,6 +16,10 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         model.set_obj_coeff(var, 1.);
         vars.push(var);
     }
+
+    // for vertex in upper_bound {
+    //     model.set_col_initial_solution(vars[vertex as usize], 1.);
+    // }
 
     let mut constraints = Vec::new();
     let mut constraint_map = vec![Vec::new(); vertices];
@@ -29,6 +31,7 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
             break;
         }
 
+        let mut sources = Vec::with_capacity(stars.len());
         for (source, neighbors) in &stars {
             for neighbor in neighbors {
                 if *source < *neighbor {
@@ -37,10 +40,11 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
                     constraints.push([*source, *neighbor]);
                 }
             }
+            sources.push(*source);
         }
+        // break;
+        graph.mark_forbidden(&sources);
         graph.remove_undirected_edges(stars);
-        let compressed = graph.compress().0;
-        println!("{}", compressed);
         
         let mut reduced = graph.reduce(vertices).unwrap();
         if reduced.len() == 0 {
@@ -71,10 +75,32 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         model.set_weight(cstr, vars[v as usize], 1.);
     }
 
-    model.set_obj_sense(Sense::Minimize);
     let mut dfvs = Vec::new();
+    model.set_obj_sense(Sense::Minimize);
     let solution = model.solve();
     recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
+    
+    if graph.is_acyclic_with_fvs(&dfvs) {
+        dfvs.append(&mut forced);
+        return Some(dfvs);
+    }
+    
+    for cycle in graph.edge_cycle_cover() {
+        let cstr = model.add_row();
+        model.set_row_lower(cstr, 1.);
+        for vertex in cycle {
+            model.set_weight(cstr, vars[vertex as usize], 1.);
+        }
+    }
+
+
+    let solution = model.solve();
+    recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
+    
+    if graph.is_acyclic_with_fvs(&dfvs) {
+        dfvs.append(&mut forced);
+        return Some(dfvs);
+    }
 
     loop {
         let mut changed = false;

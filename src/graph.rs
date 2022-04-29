@@ -16,10 +16,9 @@ use std::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Graph {
-    // /// The list of vertices which are not deleted.
-    active_vertices: Vec<bool>,
+    /// The list of vertices which are deleted.
+    deleted_vertices: Vec<bool>,
 
-    // ///
     // num_active_vertices: usize,
     coloring: Vec<Color>,
 
@@ -29,22 +28,8 @@ pub struct Graph {
     /// The adjacency list representation of the reversed graph.
     rev_adj: Vec<Vec<u32>>,
 
-    // /// Out-degree heap
-    // max_degree_heap: Heap<MaxItem>,
-
-    // /// Current out-degree of each vertex
-    // current_out_degree: Vec<usize>,
-
-    // /// Current in-degree of each vertex
-    // current_in_degree: Vec<usize>,
-
-    // /// H
-    // sink_source_buffer: Vec<u32>,
-
-    // sinks_or_sources: RangeSet,
-
-    // test
-    deleted_vertices: Vec<bool>,
+    /// Vertices which are forbidden to be reduced
+    forbidden: Vec<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,14 +41,12 @@ enum Color {
 
 impl Graph {
     pub fn new(vertices: usize) -> Graph {
-        let active_vertices = vec![true; vertices];
         let _num_active_vertices = vertices;
         let coloring = vec![Color::Unvisited; vertices];
         let adj = vec![Vec::new(); vertices];
         let rev_adj = vec![Vec::new(); vertices];
         Graph {
-            active_vertices,
-            // num_active_vertices,
+            deleted_vertices: vec![false; vertices],
             coloring,
             adj,
             rev_adj,
@@ -72,7 +55,7 @@ impl Graph {
             // current_in_degree: vec![0; vertices],
             // sink_source_buffer: Vec::new(),
             // sinks_or_sources: RangeSet::new(vertices),
-            deleted_vertices: vec![false; vertices],
+            forbidden: vec![false; vertices],
         }
     }
 
@@ -86,6 +69,9 @@ impl Graph {
     }
 
     pub fn remove_vertex(&mut self, vertex: u32) {
+        if self.forbidden[vertex as usize] {
+            println!("{}", vertex);
+        }
         self.deleted_vertices[vertex as usize] = true;
         let forward_list = std::mem::take(&mut self.adj[vertex as usize]);
         for next in forward_list {
@@ -361,7 +347,7 @@ impl Graph {
         }
 
         for i in 0..self.total_vertices() {
-            if !self.active_vertices[i] {
+            if self.deleted_vertices[i] {
                 continue;
             }
             match coloring[i] {
@@ -486,12 +472,12 @@ impl Graph {
             if !self.deleted_vertices[vertex] {
                 let deg_out = self.adj[vertex]
                     .iter()
-                    .filter(|u| self.active_vertices[**u as usize])
+                    .filter(|u| !self.deleted_vertices[**u as usize])
                     .fold(0, |acc, _| acc + 1) as u32;
 
                 let deg_in = self.rev_adj[vertex]
                     .iter()
-                    .filter(|u| self.active_vertices[**u as usize])
+                    .filter(|u| !self.deleted_vertices[**u as usize])
                     .fold(0, |acc, _| acc + 1) as u32;
 
                 if deg_in + deg_out > max_deg {
@@ -678,7 +664,8 @@ impl Graph {
     fn has_single_outgoing(&self) -> bool {
         for i in 0..self.adj.len() {
             let list = &self.adj[i];
-            if list.len() == 1 && !self.deleted_vertices[i] && list[0] != i as u32 {
+            let allowed = !self.deleted_vertices[i] && !self.forbidden[i];
+            if list.len() == 1 && allowed && list[0] != i as u32 {
                 return true;
             }
         }
@@ -688,7 +675,8 @@ impl Graph {
     fn has_single_incoming(&self) -> bool {
         for i in 0..self.rev_adj.len() {
             let list = &self.rev_adj[i];
-            if list.len() == 1 && !self.deleted_vertices[i] && list[0] != i as u32 {
+            let allowed = !self.deleted_vertices[i] && !self.forbidden[i];
+            if list.len() == 1 && allowed && list[0] != i as u32 {
                 return true;
             }
         }
@@ -698,7 +686,8 @@ impl Graph {
     fn single_incoming_reduction(&mut self) {
         for i in 0..self.rev_adj.len() {
             let list = &self.rev_adj[i];
-            if list.len() == 1 && !self.deleted_vertices[i] {
+            let allowed = !self.deleted_vertices[i] && !self.forbidden[i];
+            if list.len() == 1 && allowed {
                 let source = *list.first().unwrap();
                 if source == i as u32 {
                     // self-loop
@@ -737,7 +726,8 @@ impl Graph {
     fn single_outgoing_reduction(&mut self) {
         for i in 0..self.adj.len() {
             let list = &self.adj[i];
-            if list.len() == 1 && !self.deleted_vertices[i] {
+            let allowed = !self.deleted_vertices[i] && !self.forbidden[i];
+            if list.len() == 1 && allowed {
                 // get the single target
                 let target = *list.first().unwrap();
                 if target == i as u32 {
@@ -1099,9 +1089,19 @@ impl Graph {
                 }
 
                 if undir_edges == 0 || dir_edges == 0 {
-                    twins.pop();
-                    self.remove_vertices(&twins);
-                    forced.append(&mut twins);
+                    let mut filtered = Vec::with_capacity(twins.len());
+                    for vertex in &twins {
+                        if !self.forbidden[*vertex as usize] {
+                            filtered.push(*vertex);
+                        }
+                    }
+
+                    if filtered.len() == twins.len() {
+                        filtered.pop();
+                    }
+
+                    self.remove_vertices(&filtered);
+                    forced.append(&mut filtered);
                 }
             }
         }
@@ -1133,7 +1133,7 @@ impl Graph {
         for (source, neighbors) in stars {
             let red_source_adj = difference(&self.adj[source as usize], &neighbors);
             self.adj[source as usize] = red_source_adj;
-            
+
             let red_source_rev_adj = difference(&self.rev_adj[source as usize], &neighbors);
             self.rev_adj[source as usize] = red_source_rev_adj;
 
@@ -1152,6 +1152,18 @@ impl Graph {
                     }
                 }
             }
+        }
+    }
+
+    pub fn mark_forbidden(&mut self, vertices: &Vec<u32>) {
+        for vertex in vertices {
+            self.forbidden[*vertex as usize] = true;
+        }
+    }
+
+    pub fn unmark_forbidden(&mut self, vertices: &Vec<u32>) {
+        for vertex in vertices {
+            self.forbidden[*vertex as usize] = false;
         }
     }
 }
@@ -1270,7 +1282,7 @@ impl fmt::Display for Graph {
         for list in &self.adj {
             let mut first = true;
             for i in 0..list.len() {
-                if self.active_vertices[list[i] as usize] {
+                if !self.deleted_vertices[list[i] as usize] {
                     if first {
                         write!(f, "{}", list[i] + 1)?;
                         first = false;

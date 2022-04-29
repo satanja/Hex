@@ -22,8 +22,9 @@ assert_cmd = "1.0"
 rayon = "1.5"
 
 [profile.release]
-lto = true
-opt-level = 3
+lto = "fat"
+panic = "abort"
+incremental = true
 
 [[bin]]
 name = "debugtritus"
