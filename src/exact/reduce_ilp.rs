@@ -1,29 +1,20 @@
-use crate::graph::{EdgeCycleCover, Graph, Reducable};
+use crate::{
+    graph::{EdgeCycleCover, Graph, Reducable},
+    util::reduce_hitting_set,
+};
 use coin_cbc::{Col, Model, Sense, Solution};
 use rustc_hash::FxHashSet;
 
 pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
-    let mut model = Model::default();
-    model.set_parameter("log", "0");
-    // let _out = shh::stdout();
-    // let upper_bound = SimulatedAnnealing::upper_bound(&graph);
-
     let vertices = graph.total_vertices();
-    let mut vars = Vec::with_capacity(vertices);
-    for _ in 0..graph.total_vertices() {
-        let var = model.add_binary();
-        model.set_obj_coeff(var, 1.);
-        vars.push(var);
-    }
-
-    // for vertex in upper_bound {
-    //     model.set_col_initial_solution(vars[vertex as usize], 1.);
-    // }
-
     let mut constraints = Vec::new();
     let mut constraint_map = vec![Vec::new(); vertices];
     let mut forced = Vec::new();
 
+    // Start form the undirected part of the graph
+    // Include the undirected edges as constraints, and remove the undirected
+    // edges from the graph. Safely reduce the graph (endpoints cannot be
+    // reduced). Repeat until no undirected edges exist.
     loop {
         let stars = graph.stars();
         if stars.is_empty() {
@@ -36,7 +27,7 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
                 if *source < *neighbor {
                     constraint_map[*source as usize].push(constraints.len());
                     constraint_map[*neighbor as usize].push(constraints.len());
-                    constraints.push([*source, *neighbor]);
+                    constraints.push(vec![*source, *neighbor]);
                 }
             }
             sources.push(*source);
@@ -51,55 +42,71 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         }
         forced.append(&mut reduced);
     }
-    let mut forced_constraints = FxHashSet::default();
 
+    // Some generated constraints may already be satisfied, filter those.
+    let mut forced_constraints = FxHashSet::default();
     for vertex in &forced {
         for constraint in &constraint_map[*vertex as usize] {
             forced_constraints.insert(*constraint);
         }
     }
-
+    let mut preprocess_constraints = Vec::new();
     for i in 0..constraints.len() {
         if forced_constraints.contains(&i) {
             continue;
         }
-
-        let list = constraints[i];
-        let u = list[0];
-        let v = list[1];
-
-        let cstr = model.add_row();
-        model.set_row_lower(cstr, 1.);
-        model.set_weight(cstr, vars[u as usize], 1.);
-        model.set_weight(cstr, vars[v as usize], 1.);
+        preprocess_constraints.push(std::mem::take(&mut constraints[i]));
     }
+    drop(constraints);
 
+    // Done filtering already satisified constraints. Reduce the set of constraints
+    // using a Hitting Set reduction.
+    let mut reduction = reduce_hitting_set(&mut preprocess_constraints, vertices as u32);
+    let reduced_constraints = reduction.reduced;
+
+    // Time to create a model and solve it.
     let mut dfvs = Vec::new();
-    model.set_obj_sense(Sense::Minimize);
+
+    let (model, vars) = create_model(vertices, reduced_constraints);
     let solution = model.solve();
     recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
+    let mut candidate_dfvs = dfvs.clone();
+    candidate_dfvs.append(&mut reduction.forced);
 
-    if graph.is_acyclic_with_fvs(&dfvs) {
-        dfvs.append(&mut forced);
-        return Some(dfvs);
+    if graph.is_acyclic_with_fvs(&candidate_dfvs) {
+        // We were lucky with our constraints
+        // Recall that we already forced some vertices when partially reducing
+        // our graph.
+        candidate_dfvs.append(&mut forced);
+        return Some(candidate_dfvs);
     }
+
+    // Unfortunately, we are not lucky with our constraints, so we have to drop
+    // old model, and find new constraints.
+    drop(model);
 
     for cycle in graph.edge_cycle_cover() {
-        let cstr = model.add_row();
-        model.set_row_lower(cstr, 1.);
-        for vertex in cycle {
-            model.set_weight(cstr, vars[vertex as usize], 1.);
-        }
+        preprocess_constraints.push(cycle);
     }
+
+    let mut reduction = reduce_hitting_set(&mut preprocess_constraints, vars.len() as u32);
+    let reduced_constraints = reduction.reduced;
+    let (model, vars) = create_model(vertices, reduced_constraints);
 
     let solution = model.solve();
     recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
+    let mut candidate_dfvs = dfvs.clone();
+    candidate_dfvs.append(&mut reduction.forced);
 
-    if graph.is_acyclic_with_fvs(&dfvs) {
-        dfvs.append(&mut forced);
-        return Some(dfvs);
+    if graph.is_acyclic_with_fvs(&candidate_dfvs) {
+        candidate_dfvs.append(&mut forced);
+        return Some(candidate_dfvs);
     }
 
+    // Again not lucky, let's just add constraints until we do have a solution.
+    drop(model);
+
+    let (mut model, vars) = create_model(vertices, preprocess_constraints);
     loop {
         let mut changed = false;
         while let Some(cycle) = graph.find_cycle_with_fvs(&dfvs) {
@@ -116,7 +123,7 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
             break;
         }
 
-        let _out = shh::stdout();
+        // let _out = shh::stdout();
 
         let solution = model.solve();
 
@@ -126,10 +133,33 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
     Some(dfvs)
 }
 
+fn create_model(vertices: usize, constraints: Vec<Vec<u32>>) -> (Model, Vec<Col>) {
+    let mut model = Model::default();
+    model.set_obj_sense(Sense::Minimize);
+    model.set_parameter("log", "0");
+
+    let mut vars = Vec::with_capacity(vertices);
+    for _ in 0..vertices {
+        let var = model.add_binary();
+        model.set_obj_coeff(var, 1.);
+        vars.push(var);
+    }
+
+    for constraint in constraints {
+        let cstr = model.add_row();
+        model.set_row_lower(cstr, 1.);
+        for vertex in constraint {
+            model.set_weight(cstr, vars[vertex as usize], 1.);
+        }
+    }
+
+    (model, vars)
+}
+
 fn recover_solution(solution: &Solution, vars: &Vec<Col>, dfvs: &mut Vec<u32>, vertices: usize) {
     dfvs.clear();
     for i in 0..vertices {
-        if solution.col(vars[i]) >= 0.95 {
+        if solution.col(vars[i]) >= 0.9995 {
             dfvs.push(i as u32);
         }
     }

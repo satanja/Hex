@@ -69,9 +69,6 @@ impl Graph {
     }
 
     pub fn remove_vertex(&mut self, vertex: u32) {
-        if self.forbidden[vertex as usize] {
-            println!("{}", vertex);
-        }
         self.deleted_vertices[vertex as usize] = true;
         let forward_list = std::mem::take(&mut self.adj[vertex as usize]);
         for next in forward_list {
