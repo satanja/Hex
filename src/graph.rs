@@ -1640,16 +1640,11 @@ pub trait EdgeCycleCover {
 impl EdgeCycleCover for Graph {
     fn edge_cycle_cover(&self) -> Vec<Vec<u32>> {
         let mut cycles = FxHashSet::default();
-        let mut covered_edges = FxHashSet::default();
         for i in 0..self.total_vertices() {
             if self.deleted_vertices[i] {
                 continue;
             }
             for source in &self.adj[i] {
-                // if covered_edges.contains(&(i as u32, *source)) {
-                //     continue;
-                // }
-
                 let mut queue = VecDeque::new();
                 let mut discovered = vec![None; self.total_vertices()];
                 queue.push_back(*source);
@@ -1666,15 +1661,12 @@ impl EdgeCycleCover for Graph {
                             }
                             cycle.push(*source);
                             cycle.reverse();
-                            cycle.sort_unstable();
 
-                            for i in 0..cycle.len() - 1 {
-                                let start = cycle[i];
-                                let end = cycle[i + 1];
-                                covered_edges.insert((start, end));
+                            if let Some(shortcut) = self.find_shortuct(&cycle) {
+                                cycle = shortcut;
                             }
-                            covered_edges.insert((target, *source));
 
+                            cycle.sort_unstable();
                             cycles.insert(cycle);
                             break 'main_loop;
                         }
@@ -1686,7 +1678,55 @@ impl EdgeCycleCover for Graph {
                 }
             }
         }
+        // println!("found {} shortcuts", shortcuts);
         cycles.into_iter().collect()
+    }
+}
+
+trait ShortCut {
+    fn find_shortuct(&self, cycle: &Vec<u32>) -> Option<Vec<u32>>;
+}
+
+impl ShortCut for Graph {
+    fn find_shortuct(&self, cycle: &Vec<u32>) -> Option<Vec<u32>> {
+        if cycle.len() < 4 {
+            return None;
+        }
+
+        let cycle_set: FxHashSet<_> = cycle.iter().map(|v| *v).collect();
+        for i in 1..cycle.len() {
+            let source = cycle[i];
+            let mut queue = VecDeque::new();
+            let mut discovered = vec![None; self.total_vertices()];
+            queue.push_back((source, 1));
+
+            while let Some((vertex, length)) = queue.pop_front() {
+                if vertex == source && length > 1 {
+                    // we found a smaller cycle in the original cycle
+                    let mut new_cycle = vec![];
+                    let mut current_vertex = discovered[vertex as usize].unwrap();
+                    while current_vertex != source {
+                        new_cycle.push(current_vertex);
+                        current_vertex = discovered[current_vertex as usize].unwrap();
+                    }
+                    new_cycle.push(source);
+                    new_cycle.reverse();
+                    return Some(new_cycle);
+                }
+                if length >= cycle.len() - 1 {
+                    // we are not going to find a smaller cycle
+                    continue;
+                }
+                // we can still search for a smaller cycle
+                for target in &self.adj[vertex as usize] {
+                    if cycle_set.contains(target) && discovered[*target as usize].is_none() {
+                        discovered[*target as usize] = Some(vertex);
+                        queue.push_back((*target, length + 1));
+                    }
+                }
+            }
+        }
+        None
     }
 }
 
