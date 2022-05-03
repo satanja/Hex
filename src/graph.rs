@@ -1693,7 +1693,7 @@ impl ShortCut for Graph {
             return None;
         }
 
-        let cycle_set: FxHashSet<_> = cycle.iter().map(|v| *v).collect();
+        let cycle_set: FxHashSet<_> = cycle.iter().copied().collect();
         for i in 1..cycle.len() {
             let source = cycle[i];
             let mut queue = VecDeque::new();
