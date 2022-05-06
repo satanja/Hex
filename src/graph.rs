@@ -8,11 +8,7 @@ use rand::prelude::SliceRandom;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::{
-    collections::VecDeque,
-    io::{BufWriter, Write},
-    process::ChildStdin,
-};
+use std::{collections::VecDeque, fmt::Write};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Graph {
@@ -1276,7 +1272,7 @@ impl fmt::Display for Graph {
 }
 pub trait Undirected {
     fn is_undirected(&self) -> bool;
-    fn write_to_stdin(&self, stdin: ChildStdin);
+    fn as_string(&self) -> String;
 }
 
 impl Undirected for Graph {
@@ -1292,17 +1288,18 @@ impl Undirected for Graph {
         true
     }
 
-    fn write_to_stdin(&self, stdin: ChildStdin) {
-        let mut writer = BufWriter::new(stdin);
+    fn as_string(&self) -> String {
+        let mut output = String::new();
         let directed_edges = self.adj.iter().fold(0, |x, list| x + list.len());
         let edges = directed_edges / 2;
 
-        writeln!(writer, "p td {} {}", self.total_vertices(), edges).unwrap();
+        writeln!(output, "p td {} {}", self.total_vertices(), edges).unwrap();
         let edges = self.undir_edge_iter();
         for (u, v) in edges {
-            writeln!(writer, "{} {}", u + 1, v + 1).unwrap();
+            writeln!(output, "{} {}", u + 1, v + 1).unwrap();
         }
-        writer.flush().unwrap();
+
+        output
     }
 }
 

@@ -11,10 +11,11 @@ default = []
 cbc-old = []
 
 [dependencies]
-rustc-hash = "1.1.0"
+duct = "0.13.5"
 coin_cbc = "0.1.6"
-shh = "1.0.1"
 rand = "0.8.5"
+rustc-hash = "1.1.0"
+shh = "1.0.1"
 
 [dev-dependencies]
 cpu-time = "1.0"
