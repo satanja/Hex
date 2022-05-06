@@ -1,9 +1,10 @@
 use crate::heur::{make_minimal, GRMaxDegree};
 use crate::{graph::Graph, heur::Heuristic};
-use coin_cbc::{Col, Model, Sense, Solution};
+use coin_cbc::{Sense};
+use super::recover_solution;
 
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
-    let mut model = Model::default();
+    let mut model = super::init_model();
     model.set_parameter("log", "0");
 
     let mut vars = Vec::with_capacity(graph.total_vertices());
@@ -62,15 +63,6 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
         recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
     }
     Some(dfvs)
-}
-
-fn recover_solution(solution: &Solution, vars: &Vec<Col>, dfvs: &mut Vec<u32>, vertices: usize) {
-    dfvs.clear();
-    for i in 0..vertices {
-        if solution.col(vars[i]) >= 0.95 {
-            dfvs.push(i as u32);
-        }
-    }
 }
 
 #[cfg(test)]

@@ -129,15 +129,14 @@ impl<T: Ord + KeyValue> Heap<T> {
     fn min_heapify(&mut self, index: usize) {
         let left = left_child(index);
         let right = right_child(index);
-        let mut smallest: usize;
 
-        if left < self.len()
+        let mut smallest = if left < self.len()
             && self.heap[left].partial_cmp(&self.heap[index]).unwrap() == Ordering::Less
         {
-            smallest = left;
+            left
         } else {
-            smallest = index;
-        }
+            index
+        };
 
         if right < self.len()
             && self.heap[right].partial_cmp(&self.heap[smallest]).unwrap() == Ordering::Less

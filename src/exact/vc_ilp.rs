@@ -1,17 +1,11 @@
 //! Vertex Cover ILP solver
+use super::recover_solution;
 use crate::graph::{EdgeIter, Graph};
-use coin_cbc::{Model, Sense};
+use coin_cbc::Sense;
 
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
     let _out = shh::stdout();
-    let mut model = Model::default();
-    model.set_parameter("log", "0");
-
-    // Optil can only use coinor-libcbc-dev version 2.8.12, which has
-    // a bugged preprocessor
-    #[cfg(feature = "cbc-old")]
-    model.set_parameter("preprocess", "off");
-
+    let mut model = super::init_model();
     // TODO possible optimization flags
 
     let mut vars = Vec::with_capacity(graph.total_vertices());
@@ -34,12 +28,9 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
     model.set_obj_sense(Sense::Minimize);
     let solution = model.solve();
 
-    Some(
-        (0..vars.len())
-            .filter(|i| solution.col(vars[*i]) >= 0.9995)
-            .map(|i| i as u32)
-            .collect(),
-    )
+    let mut dfvs = Vec::new();
+    recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
+    Some(dfvs)
 }
 
 #[cfg(test)]

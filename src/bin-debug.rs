@@ -3,7 +3,7 @@
 //! cumbersome. Instead of reading from stdin, all instances in a directory are
 //! loaded in and ran on whatever is in the main function (this will change
 //! throughout the project).
-
+#![allow(dead_code)]
 mod exact;
 mod graph;
 mod heur;

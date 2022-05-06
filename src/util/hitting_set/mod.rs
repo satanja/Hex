@@ -9,11 +9,11 @@ pub struct HSReductionResult {
     pub reduced: Vec<Vec<u32>>,
 }
 
-pub fn reduce_hitting_set(original: &mut Vec<Vec<u32>>, max_value: u32) -> HSReductionResult {
+pub fn reduce_hitting_set(original: &mut [Vec<u32>], max_value: u32) -> HSReductionResult {
     for set in original.iter_mut() {
         set.sort_unstable();
     }
-    let mut instance = original.clone();
+    let mut instance = original.to_owned();
     let mut reduced;
     let mut total_forced = Vec::new();
 

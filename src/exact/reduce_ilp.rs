@@ -1,8 +1,9 @@
+use super::recover_solution;
 use crate::{
     graph::{EdgeCycleCover, Graph, Reducable},
     util::reduce_hitting_set,
 };
-use coin_cbc::{Col, Model, Sense, Solution};
+use coin_cbc::{Col, Model, Sense};
 use rustc_hash::FxHashSet;
 
 pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
@@ -134,9 +135,8 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
 }
 
 fn create_model(vertices: usize, constraints: Vec<Vec<u32>>) -> (Model, Vec<Col>) {
-    let mut model = Model::default();
+    let mut model = super::init_model();
     model.set_obj_sense(Sense::Minimize);
-    model.set_parameter("log", "0");
 
     let mut vars = Vec::with_capacity(vertices);
     for _ in 0..vertices {
@@ -154,13 +154,4 @@ fn create_model(vertices: usize, constraints: Vec<Vec<u32>>) -> (Model, Vec<Col>
     }
 
     (model, vars)
-}
-
-fn recover_solution(solution: &Solution, vars: &Vec<Col>, dfvs: &mut Vec<u32>, vertices: usize) {
-    dfvs.clear();
-    for i in 0..vertices {
-        if solution.col(vars[i]) >= 0.9995 {
-            dfvs.push(i as u32);
-        }
-    }
 }

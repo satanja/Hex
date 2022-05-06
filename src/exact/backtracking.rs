@@ -45,7 +45,7 @@ pub fn branch_and_bound(
     }
 
     // we cannot branch on a star, so branch on a vertex in a cycle
-    let cycle = graph.find_cycle_with_fvs(&vec![]).unwrap();
+    let cycle = graph.find_cycle_with_fvs(&[]).unwrap();
     let mut best = None;
     for vertex in cycle {
         let mut clone = graph.clone();
@@ -130,7 +130,7 @@ fn branch_and_reduce(graph: &mut Graph, upper_bound: usize) -> Option<Vec<u32>> 
     }
 
     // we cannot branch on a star, so branch on a vertex in a cycle
-    let cycle = graph.find_cycle_with_fvs(&vec![]).unwrap();
+    let cycle = graph.find_cycle_with_fvs(&[]).unwrap();
     let mut best = None;
     for vertex in cycle {
         let mut clone = graph.clone();
@@ -260,9 +260,9 @@ mod tests {
     #[test]
     fn branch_and_bound_test_004() {
         let n = 5;
-        let mut graph = generate_clique(n);
+        let graph = generate_clique(n);
         let ub = SimulatedAnnealing::upper_bound(&graph);
-        let solution = branch_and_bound(&mut graph, 0, ub.len()).unwrap();
+        let solution = branch_and_bound(&graph, 0, ub.len()).unwrap();
         assert_eq!(solution.len(), n - 1);
         assert!(graph.is_acyclic_with_fvs(&solution));
     }

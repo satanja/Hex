@@ -1,14 +1,9 @@
-use crate::graph::{Graph, EdgeCycleCover};
-use coin_cbc::{Col, Model, Sense, Solution};
+use super::recover_solution;
+use crate::graph::{EdgeCycleCover, Graph};
+use coin_cbc::{Sense};
 
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
-    let mut model = Model::default();
-    model.set_parameter("log", "0");
-    
-    // Optil can only use coinor-libcbc-dev version 2.8.12, which has
-    // a bugged preprocessor
-    #[cfg(feature = "cbc-old")]
-    model.set_parameter("preprocess", "off");
+    let mut model = super::init_model();
 
     let mut vars = Vec::with_capacity(graph.total_vertices());
     for _ in 0..graph.total_vertices() {
@@ -48,7 +43,7 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
 
     let solution = model.solve();
     recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
-    
+
     if graph.is_acyclic_with_fvs(&dfvs) {
         return Some(dfvs);
     }
@@ -76,15 +71,6 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
         recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
     }
     Some(dfvs)
-}
-
-fn recover_solution(solution: &Solution, vars: &Vec<Col>, dfvs: &mut Vec<u32>, vertices: usize) {
-    dfvs.clear();
-    for i in 0..vertices {
-        if solution.col(vars[i]) >= 0.9995 {
-            dfvs.push(i as u32);
-        }
-    }
 }
 
 #[cfg(test)]

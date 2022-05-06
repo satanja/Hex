@@ -82,7 +82,7 @@ impl Graph {
         }
     }
 
-    pub fn remove_vertices(&mut self, vertices: &Vec<u32>) {
+    pub fn remove_vertices(&mut self, vertices: &[u32]) {
         let mut affected_vertices_forward = FxHashSet::default();
         let mut affected_vertices_back = FxHashSet::default();
         for singleton in vertices {
@@ -271,11 +271,11 @@ impl Graph {
         result
     }
 
-    pub fn get_outgoing(&self, vertex: &u32) -> &Vec<u32> {
+    pub fn get_outgoing(&self, vertex: &u32) -> &[u32] {
         &self.adj[*vertex as usize]
     }
 
-    pub fn get_incoming(&self, vertex: &u32) -> &Vec<u32> {
+    pub fn get_incoming(&self, vertex: &u32) -> &[u32] {
         &self.rev_adj[*vertex as usize]
     }
 
@@ -319,13 +319,8 @@ impl Graph {
             if self.deleted_vertices[i] {
                 continue;
             }
-            match local_coloring[i] {
-                Color::Unvisited => {
-                    if self.visit(i, &mut local_coloring) {
-                        return true;
-                    }
-                }
-                _ => {}
+            if local_coloring[i] == Color::Unvisited && self.visit(i, &mut local_coloring) {
+                return true;
             }
         }
         false
@@ -336,7 +331,7 @@ impl Graph {
     ///  Simple DFS implementation based on
     /// computing a topological ordering. The graph may consist of several
     /// connected components.
-    pub fn is_acyclic_with_fvs(&self, fvs: &Vec<u32>) -> bool {
+    pub fn is_acyclic_with_fvs(&self, fvs: &[u32]) -> bool {
         // keep track of which vertices have been exhaustively visited
         let mut coloring: Vec<_> = vec![Color::Unvisited; self.total_vertices()];
         for vertex in fvs {
@@ -347,13 +342,8 @@ impl Graph {
             if self.deleted_vertices[i] {
                 continue;
             }
-            match coloring[i] {
-                Color::Unvisited => {
-                    if self.visit(i, &mut coloring) {
-                        return false;
-                    }
-                }
-                _ => {}
+            if coloring[i] == Color::Unvisited && self.visit(i, &mut coloring) {
+                return false;
             }
         }
         true
@@ -401,7 +391,7 @@ impl Graph {
         None
     }
 
-    pub fn find_cycle_with_fvs(&self, fvs: &Vec<u32>) -> Option<Vec<u32>> {
+    pub fn find_cycle_with_fvs(&self, fvs: &[u32]) -> Option<Vec<u32>> {
         let mut coloring = vec![Color::Unvisited; self.total_vertices()];
         let mut pred: Vec<Option<u32>> = vec![None; self.total_vertices()];
 
@@ -413,19 +403,16 @@ impl Graph {
             if self.deleted_vertices[i] {
                 continue;
             }
-            match coloring[i] {
-                Color::Unvisited => {
-                    if let Some(cycle) = self.dfs_find_cycle(i, &mut coloring, &mut pred) {
-                        return Some(cycle);
-                    }
+            if coloring[i] == Color::Unvisited {
+                if let Some(cycle) = self.dfs_find_cycle(i, &mut coloring, &mut pred) {
+                    return Some(cycle);
                 }
-                _ => {}
             }
         }
         None
     }
 
-    pub fn find_cycle_from_minimal(&self, minimal: &Vec<u32>) -> Vec<Vec<u32>> {
+    pub fn find_cycle_from_minimal(&self, minimal: &[u32]) -> Vec<Vec<u32>> {
         let mut coloring = vec![Color::Unvisited; self.total_vertices()];
         let mut pred: Vec<Option<u32>> = vec![None; self.total_vertices()];
 
@@ -976,7 +963,7 @@ impl Graph {
         }
     }
 
-    fn contract_component_to_vertex(&mut self, component: &Vec<u32>) {
+    fn contract_component_to_vertex(&mut self, component: &[u32]) {
         let mut leaving = FxHashSet::default();
         let mut entering = FxHashSet::default();
         let component_set: FxHashSet<_> = component.iter().copied().collect();
@@ -1152,15 +1139,9 @@ impl Graph {
         }
     }
 
-    pub fn mark_forbidden(&mut self, vertices: &Vec<u32>) {
+    pub fn mark_forbidden(&mut self, vertices: &[u32]) {
         for vertex in vertices {
             self.forbidden[*vertex as usize] = true;
-        }
-    }
-
-    pub fn unmark_forbidden(&mut self, vertices: &Vec<u32>) {
-        for vertex in vertices {
-            self.forbidden[*vertex as usize] = false;
         }
     }
 }
@@ -1684,11 +1665,11 @@ impl EdgeCycleCover for Graph {
 }
 
 trait ShortCut {
-    fn find_shortuct(&self, cycle: &Vec<u32>) -> Option<Vec<u32>>;
+    fn find_shortuct(&self, cycle: &[u32]) -> Option<Vec<u32>>;
 }
 
 impl ShortCut for Graph {
-    fn find_shortuct(&self, cycle: &Vec<u32>) -> Option<Vec<u32>> {
+    fn find_shortuct(&self, cycle: &[u32]) -> Option<Vec<u32>> {
         if cycle.len() < 4 {
             return None;
         }
@@ -1842,35 +1823,35 @@ mod tests {
     fn has_fvs_cycle_test_001() {
         let graph = pace_example_graph();
         let fvs = vec![];
-        assert_eq!(graph.is_acyclic_with_fvs(&fvs), false);
+        assert!(!graph.is_acyclic_with_fvs(&fvs));
     }
 
     #[test]
     fn has_fvs_cycle_test_002() {
         let graph = pace_example_graph();
         let fvs = vec![1];
-        assert_eq!(graph.is_acyclic_with_fvs(&fvs), false);
+        assert!(!graph.is_acyclic_with_fvs(&fvs));
     }
 
     #[test]
     fn has_fvs_cycle_test_004() {
         let graph = pace_example_graph();
         let fvs = vec![0];
-        assert_eq!(graph.is_acyclic_with_fvs(&fvs), true);
+        assert!(graph.is_acyclic_with_fvs(&fvs));
     }
 
     #[test]
     fn has_fvs_cycle_test_005() {
         let graph = pace_example_graph();
         let fvs = vec![2];
-        assert_eq!(graph.is_acyclic_with_fvs(&fvs), true);
+        assert!(graph.is_acyclic_with_fvs(&fvs));
     }
 
     #[test]
     fn has_fvs_cycle_test_006() {
         let graph = pace_example_graph();
         let fvs = vec![3];
-        assert_eq!(graph.is_acyclic_with_fvs(&fvs), true);
+        assert!(graph.is_acyclic_with_fvs(&fvs));
     }
 
     #[test]
@@ -1948,7 +1929,7 @@ mod tests {
     fn find_cycle_test_001() {
         let mut graph = Graph::new(2);
         graph.add_arc(0, 1);
-        assert_eq!(graph.find_cycle_with_fvs(&vec![]), None);
+        assert_eq!(graph.find_cycle_with_fvs(&[]), None);
     }
 
     #[test]
@@ -1956,7 +1937,7 @@ mod tests {
         let mut graph = Graph::new(2);
         graph.add_arc(0, 1);
         graph.add_arc(1, 0);
-        assert_eq!(graph.find_cycle_with_fvs(&vec![]), Some(vec![0, 1]));
+        assert_eq!(graph.find_cycle_with_fvs(&[]), Some(vec![0, 1]));
     }
 
     #[test]
@@ -1968,7 +1949,7 @@ mod tests {
         graph.add_arc(3, 4);
         graph.add_arc(4, 2);
 
-        assert_eq!(graph.find_cycle_with_fvs(&vec![]), Some(vec![2, 3, 4]));
+        assert_eq!(graph.find_cycle_with_fvs(&[]), Some(vec![2, 3, 4]));
     }
 
     #[test]
@@ -1980,7 +1961,7 @@ mod tests {
         graph.add_arc(3, 4);
         graph.add_arc(4, 2);
 
-        assert_eq!(graph.find_cycle_with_fvs(&vec![2]), None);
+        assert_eq!(graph.find_cycle_with_fvs(&[2]), None);
     }
 
     #[test]
@@ -1989,7 +1970,7 @@ mod tests {
         graph.add_arc(0, 1);
         graph.add_arc(0, 2);
         graph.add_arc(1, 2);
-        assert_eq!(graph.find_cycle_with_fvs(&vec![]), None);
+        assert_eq!(graph.find_cycle_with_fvs(&[]), None);
     }
 
     #[test]

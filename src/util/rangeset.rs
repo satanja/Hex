@@ -15,22 +15,16 @@ impl RangeSet {
     }
 
     pub fn insert(&mut self, vertex: u32) -> bool {
-        match self.table[vertex as usize] {
-            None => {
-                self.table[vertex as usize] = Some(self.set.len());
-                self.set.push(vertex);
-                return true;
-            }
-            _ => {}
+        if self.table[vertex as usize].is_none() {
+            self.table[vertex as usize] = Some(self.set.len());
+            self.set.push(vertex);
+            return true;
         }
         false
     }
 
     pub fn contains(&self, vertex: &u32) -> bool {
-        match self.table[*vertex as usize] {
-            None => false,
-            _ => true,
-        }
+        self.table[*vertex as usize].is_some()
     }
 
     pub fn remove(&mut self, vertex: &u32) -> bool {
