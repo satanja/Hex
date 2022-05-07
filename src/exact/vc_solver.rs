@@ -32,15 +32,14 @@ fn extract_vc_solution_from_bytes(bytes: &[u8], solution: &mut Vec<u32>) {
 }
 
 fn run_solver(graph: &Graph, solution: &mut Vec<u32>, time_limit: Duration) -> bool {
-    
     let command = if cfg!(feature = "optil") {
         cmd!("./vc_solver")
-        .stdin_bytes(graph.as_string())
-        .stdout_capture()
+            .stdin_bytes(graph.as_string())
+            .stdout_capture()
     } else {
         cmd!("./extern/WeGotYouCovered/vc_solver")
-        .stdin_bytes(graph.as_string())
-        .stdout_capture()
+            .stdin_bytes(graph.as_string())
+            .stdout_capture()
     };
 
     let child = command.start().unwrap();
@@ -57,11 +56,11 @@ fn run_solver(graph: &Graph, solution: &mut Vec<u32>, time_limit: Duration) -> b
         Ok(Some(output)) => {
             let data = &output.stdout;
             extract_vc_solution_from_bytes(data, solution);
-            return true;
+            true
         }
         _ => {
             child.kill().unwrap();
-            return false;
+            false
         }
     }
 }
@@ -89,13 +88,11 @@ pub fn solve(graph: &Graph, solution: &mut Vec<u32>) -> bool {
 pub fn solve_from_string(input: String) -> Vec<u32> {
     let mut solution = Vec::new();
     let command = if cfg!(feature = "optil") {
-        cmd!("./vc_solver")
-        .stdin_bytes(input)
-        .stdout_capture()
+        cmd!("./vc_solver").stdin_bytes(input).stdout_capture()
     } else {
         cmd!("./extern/WeGotYouCovered/vc_solver")
-        .stdin_bytes(input)
-        .stdout_capture()
+            .stdin_bytes(input)
+            .stdout_capture()
     };
 
     let child = command.start().unwrap();

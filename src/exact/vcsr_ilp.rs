@@ -2,9 +2,8 @@ use super::recover_solution;
 use crate::{
     exact::vc_solver,
     graph::{EdgeCycleCover, Graph, Reducable, ThreeClique},
-    util::reduce_hitting_set,
 };
-use coin_cbc::{Col, Model, Sense};
+use coin_cbc::Sense;
 use rustc_hash::FxHashSet;
 use std::fmt::Write;
 
