@@ -32,9 +32,16 @@ fn extract_vc_solution_from_bytes(bytes: &[u8], solution: &mut Vec<u32>) {
 }
 
 fn run_solver(graph: &Graph, solution: &mut Vec<u32>, time_limit: Duration) -> bool {
-    let command = cmd!("./extern/WeGotYouCovered/vc_solver")
+    
+    let command = if cfg!(feature = "optil") {
+        cmd!("./vc_solver")
         .stdin_bytes(graph.as_string())
-        .stdout_capture();
+        .stdout_capture()
+    } else {
+        cmd!("./extern/WeGotYouCovered/vc_solver")
+        .stdin_bytes(graph.as_string())
+        .stdout_capture()
+    };
 
     let child = command.start().unwrap();
 
@@ -77,4 +84,22 @@ pub fn solve(graph: &Graph, solution: &mut Vec<u32>) -> bool {
     }
 
     false
+}
+
+pub fn solve_from_string(input: String) -> Vec<u32> {
+    let mut solution = Vec::new();
+    let command = if cfg!(feature = "optil") {
+        cmd!("./vc_solver")
+        .stdin_bytes(input)
+        .stdout_capture()
+    } else {
+        cmd!("./extern/WeGotYouCovered/vc_solver")
+        .stdin_bytes(input)
+        .stdout_capture()
+    };
+
+    let child = command.start().unwrap();
+    let output = child.into_output().unwrap();
+    extract_vc_solution_from_bytes(&output.stdout, &mut solution);
+    solution
 }

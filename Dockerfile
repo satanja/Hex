@@ -19,4 +19,4 @@ COPY Cargo.lock Cargo.lock
 COPY Cargo.toml Cargo.toml
 COPY src/ src/
 
-RUN cargo build --release --features cbc-old
+RUN cargo build --release --features optil

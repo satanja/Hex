@@ -7,6 +7,7 @@ mod heur_ilp;
 mod hybrid_ilp;
 mod reduce_ilp;
 mod vc_ilp;
+mod vcsr_ilp;
 mod vc_solver;
 
 pub fn solve(mut graph: Graph) -> Vec<u32> {
@@ -15,7 +16,7 @@ pub fn solve(mut graph: Graph) -> Vec<u32> {
         return solution;
     }
 
-    let mut back = reduce_ilp::solve(&mut graph).unwrap();
+    let mut back = vcsr_ilp::solve(&mut graph).unwrap();
     // if graph.is_undirected() {
     //     if let Some(mut reduced_solution) = vc_ilp::solve(&graph) {
     //         solution.append(&mut reduced_solution);
@@ -35,7 +36,7 @@ fn init_model() -> Model {
 
     // Disable the bugged preprocessor for cbc 2.8.12
     // Optil servers use 2.8.12...
-    #[cfg(feature = "cbc-old")]
+    #[cfg(feature = "optil")]
     model.set_parameter("preprocess", "off");
 
     model
