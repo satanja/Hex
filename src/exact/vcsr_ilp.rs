@@ -1,7 +1,7 @@
 use super::recover_solution;
 use crate::{
     exact::vc_solver,
-    graph::{EdgeCycleCover, Graph, Reducable, ThreeClique},
+    graph::{EdgeCycleCover, Graph, Reducable, ThreeClique, Undirected},
 };
 use coin_cbc::Sense;
 use rustc_hash::FxHashSet;
@@ -12,6 +12,12 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
     let mut constraints = Vec::new();
     let mut constraint_map = vec![Vec::new(); vertices];
     let mut forced = Vec::new();
+
+    if graph.is_undirected() {
+        let mut dfvs = Vec::new();
+        vc_solver::solve(graph, &mut dfvs);
+        return Some(dfvs);
+    }
 
     // Start form the undirected part of the graph
     // Include the undirected edges as constraints, and remove the undirected
