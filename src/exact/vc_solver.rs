@@ -31,7 +31,7 @@ fn extract_vc_solution_from_bytes(bytes: &[u8], solution: &mut Vec<u32>) {
     }
 }
 
-fn run_solver(graph: &Graph, solution: &mut Vec<u32>, time_limit: Duration) -> bool {
+fn run_solver(graph: &Graph, solution: &mut Vec<u32>, time_limit: Option<Duration>) -> bool {
     let command = if cfg!(feature = "optil") {
         cmd!("./vc_solver")
             .stdin_bytes(graph.as_string())
@@ -44,45 +44,59 @@ fn run_solver(graph: &Graph, solution: &mut Vec<u32>, time_limit: Duration) -> b
 
     let child = command.start().unwrap();
 
-    if let Ok(Some(output)) = child.try_wait() {
-        let data = &output.stdout;
-        extract_vc_solution_from_bytes(data, solution);
-        return true;
-    }
-
-    std::thread::sleep(time_limit);
-
-    match child.try_wait() {
-        Ok(Some(output)) => {
+    if let Some(duration) = time_limit {
+        if let Ok(Some(output)) = child.try_wait() {
             let data = &output.stdout;
             extract_vc_solution_from_bytes(data, solution);
-            true
+            return true;
         }
-        _ => {
-            child.kill().unwrap();
-            false
+
+        std::thread::sleep(duration);
+
+        match child.try_wait() {
+            Ok(Some(output)) => {
+                let data = &output.stdout;
+                extract_vc_solution_from_bytes(data, solution);
+                return true;
+            }
+            _ => {
+                child.kill().unwrap();
+                return false;
+            }
         }
     }
+    let output = child.into_output().unwrap();
+    let data = &output.stdout;
+    extract_vc_solution_from_bytes(data, solution);
+    true
 }
 
 pub fn solve(graph: &Graph, solution: &mut Vec<u32>) -> bool {
-    if run_solver(graph, solution, Duration::from_millis(500)) {
-        return true;
+    #[cfg(feature = "time-limit")]
+    {
+        if run_solver(graph, solution, Some(Duration::from_millis(500))) {
+            return true;
+        }
+
+        if run_solver(graph, solution, Some(Duration::from_secs(5))) {
+            return true;
+        }
+
+        if run_solver(graph, solution, Some(Duration::from_secs(10))) {
+            return true;
+        }
+
+        if run_solver(graph, solution, Some(Duration::from_secs(100))) {
+            return true;
+        }
+
+        if run_solver(graph, solution, Some(Duration::from_secs(8 * 60))) {
+            return true;
+        }
+        false
     }
 
-    if run_solver(graph, solution, Duration::from_secs(5)) {
-        return true;
-    }
-
-    if run_solver(graph, solution, Duration::from_secs(10)) {
-        return true;
-    }
-
-    if run_solver(graph, solution, Duration::from_secs(100)) {
-        return true;
-    }
-
-    false
+    run_solver(graph, solution, None)
 }
 
 pub fn solve_from_string(input: String) -> Vec<u32> {

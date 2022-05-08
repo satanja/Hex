@@ -9,6 +9,7 @@ default-run = "dfvstritus"
 [features]
 default = []
 optil = []
+time-limit = []
 
 [dependencies]
 duct = "0.13.5"

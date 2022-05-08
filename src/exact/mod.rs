@@ -1,4 +1,4 @@
-use crate::graph::{Graph, HeuristicReduce};
+use crate::graph::{Graph, HeuristicReduce, Undirected};
 use coin_cbc::{Col, Model, Solution};
 
 mod backtracking;
@@ -16,7 +16,7 @@ pub fn solve(mut graph: Graph) -> Vec<u32> {
         return solution;
     }
 
-    let mut back = vcsr_ilp::solve(&mut graph).unwrap();
+    let mut back = reduce_ilp::solve(&mut graph).unwrap();
     // if graph.is_undirected() {
     //     if let Some(mut reduced_solution) = vc_ilp::solve(&graph) {
     //         solution.append(&mut reduced_solution);
