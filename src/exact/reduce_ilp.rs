@@ -124,7 +124,7 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
             break;
         }
 
-        // let _out = shh::stdout();
+        let _out = shh::stdout();
 
         let solution = model.solve();
 
