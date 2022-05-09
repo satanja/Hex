@@ -1,6 +1,8 @@
 use crate::graph::{Graph, HeuristicReduce};
 
+mod ilp_sa;
 mod sa;
+pub use ilp_sa::ilp_upper_bound;
 use rustc_hash::FxHashSet;
 pub use sa::SimulatedAnnealing;
 pub trait Heuristic {
