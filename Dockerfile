@@ -13,6 +13,7 @@ RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /~/dfvstritus
+COPY extern/WeGotYouCovered/ ./
 COPY benches/ benches/
 COPY instances/ instances/
 COPY Cargo.lock Cargo.lock
