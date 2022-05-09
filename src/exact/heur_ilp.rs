@@ -1,7 +1,7 @@
+use super::recover_solution;
 use crate::heur::{make_minimal, GRMaxDegree};
 use crate::{graph::Graph, heur::Heuristic};
-use coin_cbc::{Sense};
-use super::recover_solution;
+use coin_cbc::Sense;
 
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
     let mut model = super::init_model();
@@ -28,7 +28,7 @@ pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
     }
 
     let solution = model.solve();
-    
+
     recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
 
     loop {

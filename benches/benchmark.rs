@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // -----------
-// Original source can be found at https://gitlab.informatik.uni-bremen.de/parametrisierte-algorithmen/rust/ceperus/-/blob/v2.0.0/ceperus-exact/benches/benchmark.rs. 
+// Original source can be found at https://gitlab.informatik.uni-bremen.de/parametrisierte-algorithmen/rust/ceperus/-/blob/v2.0.0/ceperus-exact/benches/benchmark.rs.
 // Modifications compared to the original source code are indicated with
 // `MOD'.
 use assert_cmd::Command;
@@ -24,7 +24,6 @@ use std::{
     path::Path,
     time::Duration,
 };
-
 
 fn main() {
     let num_threads = env::args().nth(1).unwrap().parse().unwrap();

@@ -1,6 +1,6 @@
 use super::recover_solution;
 use crate::graph::Graph;
-use coin_cbc::{Sense};
+use coin_cbc::Sense;
 use std::time::Instant;
 
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {

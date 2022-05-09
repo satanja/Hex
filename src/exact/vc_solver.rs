@@ -104,10 +104,9 @@ pub fn solve_from_string(input: String) -> Vec<u32> {
 }
 
 fn create_program_launch() -> Expression {
-    let command = if cfg!(feature = "root-vc-solver") {
+    if cfg!(feature = "root-vc-solver") {
         cmd!("./vc_solver")
     } else {
         cmd!("./extern/WeGotYouCovered/vc_solver")
-    };
-    command
+    }
 }

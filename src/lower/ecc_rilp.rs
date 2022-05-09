@@ -1,5 +1,5 @@
 //! Vertex Cover based lower bound computation
-use crate::graph::{EdgeCycleCover, ThreeClique, Graph};
+use crate::graph::{EdgeCycleCover, Graph, ThreeClique};
 use coin_cbc::{Model, Sense};
 
 pub fn lower_bound(graph: &Graph) -> usize {

@@ -1,6 +1,6 @@
 use super::recover_solution;
 use crate::graph::{EdgeCycleCover, Graph};
-use coin_cbc::{Sense};
+use coin_cbc::Sense;
 
 pub fn solve(graph: &Graph) -> Option<Vec<u32>> {
     let mut model = super::init_model();
