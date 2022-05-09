@@ -8,7 +8,9 @@ default-run = "dfvstritus"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = []
-optil = []
+optil = ["old-cbc", "root-vc-solver"]
+old-cbc = []
+root-vc-solver = []
 time-limit = []
 
 [dependencies]

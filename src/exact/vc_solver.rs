@@ -1,4 +1,5 @@
 use duct::cmd;
+use duct::Expression;
 use std::process::Output;
 use std::time::Duration;
 
@@ -32,16 +33,8 @@ fn extract_vc_solution_from_bytes(bytes: &[u8], solution: &mut Vec<u32>) {
 }
 
 fn run_solver(graph: &Graph, solution: &mut Vec<u32>, time_limit: Option<Duration>) -> bool {
-    let command = if cfg!(feature = "optil") {
-        cmd!("./vc_solver")
-            .stdin_bytes(graph.as_string())
-            .stdout_capture()
-    } else {
-        cmd!("./extern/WeGotYouCovered/vc_solver")
-            .stdin_bytes(graph.as_string())
-            .stdout_capture()
-    };
-
+    let program = create_program_launch();
+    let command = program.stdin_bytes(graph.as_string()).stdout_capture();
     let child = command.start().unwrap();
 
     if let Some(duration) = time_limit {
@@ -101,16 +94,20 @@ pub fn solve(graph: &Graph, solution: &mut Vec<u32>) -> bool {
 
 pub fn solve_from_string(input: String) -> Vec<u32> {
     let mut solution = Vec::new();
-    let command = if cfg!(feature = "optil") {
-        cmd!("./vc_solver").stdin_bytes(input).stdout_capture()
-    } else {
-        cmd!("./extern/WeGotYouCovered/vc_solver")
-            .stdin_bytes(input)
-            .stdout_capture()
-    };
+    let program = create_program_launch();
+    let command = program.stdin_bytes(input).stdout_capture();
 
     let child = command.start().unwrap();
     let output = child.into_output().unwrap();
     extract_vc_solution_from_bytes(&output.stdout, &mut solution);
     solution
+}
+
+fn create_program_launch() -> Expression {
+    let command = if cfg!(feature = "root-vc-solver") {
+        cmd!("./vc_solver")
+    } else {
+        cmd!("./extern/WeGotYouCovered/vc_solver")
+    };
+    command
 }

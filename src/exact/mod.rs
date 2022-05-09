@@ -36,7 +36,7 @@ fn init_model() -> Model {
 
     // Disable the bugged preprocessor for cbc 2.8.12
     // Optil servers use 2.8.12...
-    #[cfg(feature = "optil")]
+    #[cfg(feature = "old-cbc")]
     model.set_parameter("preprocess", "off");
 
     model

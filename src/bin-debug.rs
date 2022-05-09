@@ -14,7 +14,7 @@ mod util;
 use std::{fs, path::PathBuf, str::FromStr};
 
 fn main() {
-    let paths = fs::read_dir("./bla/").unwrap();
+    let paths = fs::read_dir("./disconnected/").unwrap();
     let mut file_names: Vec<_> = paths
         .into_iter()
         .map(|p| p.unwrap().path().display().to_string())
