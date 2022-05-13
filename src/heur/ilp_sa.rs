@@ -197,13 +197,14 @@ impl SimulatedAnnealingILP {
         self.flip_variable(variable);
         self.flip_variables(to_fix);
 
-        let mut new_satisifed = RangeSet::new(self.adj.len());
-        for i in 0..self.states.len() {
-            if self.states[i] {
-                new_satisifed.insert(i as u32);
-            }
+        self.satisfied.remove(&variable);
+        for var in to_fix {
+            self.satisfied.insert(*var);
         }
-        self.satisfied = new_satisifed;
+    }
+
+    fn get_solution_len(&self) -> usize {
+        self.satisfied.len()
     }
 
     /// Retrieves the current solution.
@@ -221,10 +222,11 @@ impl SimulatedAnnealingILP {
 pub fn ilp_upper_bound(constraints: &Vec<Constraint>, variables: usize) -> Vec<u32> {
     let mut ilp = SimulatedAnnealingILP::new(constraints, variables);
     let mut best_solution: Vec<_> = (0..variables as u32).collect();
-    let iter = variables * 5;
+    let iter = 1_000_000;
     let ud = Uniform::new(0., 1.);
-    let mut temp = 0.99;
-    const ALPHA: f64 = 0.999;
+    let mut temp = 5.;
+    let end_temp = -1. * 1. / (1e-9f64.ln());
+    let alpha = (end_temp / temp).powf(1. / iter as f64);
 
     for _ in 0..iter {
         let variable = ilp.random_move();
@@ -235,12 +237,12 @@ pub fn ilp_upper_bound(constraints: &Vec<Constraint>, variables: usize) -> Vec<u
                 } else {
                     ilp.apply_move(variable, &[]);
                 }
-                let new_solution = ilp.get_solution();
-                if new_solution.len() < best_solution.len() {
+                if ilp.get_solution_len() < best_solution.len() {
+                    let new_solution = ilp.get_solution();
                     best_solution = new_solution;
                 }
             }
-            temp *= ALPHA;
+            temp *= alpha;
         }
     }
     ilp.get_solution()
