@@ -26,7 +26,7 @@ pub fn lower_bound(graph: &Graph) -> usize {
         }
     }
 
-    let three_cliques = graph.three_clique();
+    let three_cliques = graph.three_cliques();
     for (a, b, c) in three_cliques {
         let cstr = model.add_row();
         model.set_row_lower(cstr, 2.);

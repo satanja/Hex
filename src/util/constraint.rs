@@ -1,4 +1,4 @@
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Constraint {
     variables: Vec<u32>,
     lower_bound: u32,

@@ -1749,11 +1749,11 @@ impl TwinCliques for Graph {
 }
 
 pub trait ThreeClique {
-    fn three_clique(&self) -> Vec<(u32, u32, u32)>;
+    fn three_cliques(&self) -> Vec<(u32, u32, u32)>;
 }
 
 impl ThreeClique for Graph {
-    fn three_clique(&self) -> Vec<(u32, u32, u32)> {
+    fn three_cliques(&self) -> Vec<(u32, u32, u32)> {
         let mut cliques = Vec::new();
         let stars = self.stars();
 

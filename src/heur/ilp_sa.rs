@@ -72,13 +72,13 @@ impl SimulatedAnnealingILP {
     /// Temporarily flips a variable, and computes a set of variables to also
     /// flip to satisfy the ILP again, or `Delta::Infeasible` if there does not
     /// exist such a set.  
-    fn delta(&mut self, variable: u32) -> Delta {
+    fn delta(&mut self, variable: u32) -> (i32, Option<Vec<u32>>) {
         self.flip_variable(variable);
         let unsatisfied = self.get_unsatisfied(variable);
 
         if unsatisfied.is_empty() {
             self.flip_variable(variable);
-            return Delta::Cost(-1, None);
+            return (-1, None);
         }
 
         // Simple greedy heuristic as a first implementation
@@ -95,7 +95,7 @@ impl SimulatedAnnealingILP {
         }
 
         while !counts.is_empty() {
-            let mut max_variable = 0;
+            let mut max_variable = candidate_variables[0];
             let mut max_hit = Vec::new();
 
             // Determine the variable that hits the most unsatisfied constraints
@@ -129,7 +129,7 @@ impl SimulatedAnnealingILP {
             covered_variables.insert(max_variable);
             for constraint in max_hit {
                 let count = counts.get_mut(&constraint).unwrap();
-                if *count == self.constraints[constraint].lower_bound() {
+                if *count >= self.constraints[constraint].lower_bound() {
                     counts.remove(&constraint);
                 } else {
                     *count += 1;
@@ -141,7 +141,7 @@ impl SimulatedAnnealingILP {
 
         let to_fix: Vec<_> = covered_variables.into_iter().collect();
         let delta = self.delta_to_repair(&to_fix, variable);
-        Delta::Cost(delta, Some(to_fix))
+        (delta, Some(to_fix))
     }
 
     /// Determines the cost of flipping a set of variables. Variables set to
@@ -230,20 +230,19 @@ pub fn ilp_upper_bound(constraints: &Vec<Constraint>, variables: usize) -> Vec<u
 
     for _ in 0..iter {
         let variable = ilp.random_move();
-        if let Delta::Cost(delta, opt_to_fix) = ilp.delta(variable) {
-            if delta <= 0 || f64::exp(-delta as f64 / temp) >= ud.sample(&mut ilp.rng) {
-                if let Some(to_fix) = opt_to_fix {
-                    ilp.apply_move(variable, &to_fix)
-                } else {
-                    ilp.apply_move(variable, &[]);
-                }
-                if ilp.get_solution_len() < best_solution.len() {
-                    let new_solution = ilp.get_solution();
-                    best_solution = new_solution;
-                }
+        let (delta, opt_to_fix) = ilp.delta(variable);
+        if delta <= 0 || f64::exp(-delta as f64 / temp) >= ud.sample(&mut ilp.rng) {
+            if let Some(to_fix) = opt_to_fix {
+                ilp.apply_move(variable, &to_fix)
+            } else {
+                ilp.apply_move(variable, &[]);
             }
-            temp *= alpha;
+            if ilp.get_solution_len() < best_solution.len() {
+                let new_solution = ilp.get_solution();
+                best_solution = new_solution;
+            }
         }
+        temp *= alpha;
     }
     ilp.get_solution()
 }
