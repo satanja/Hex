@@ -29,7 +29,6 @@ rayon = "1.5"
 lto = "fat"
 panic = "abort"
 incremental = true
-debug = true
 
 [[bin]]
 name = "dehex"
