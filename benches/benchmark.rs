@@ -63,7 +63,7 @@ fn main() {
 fn solve_one(file_path: &Path, time_limit: Duration) -> Result<usize, String> {
     // MOD: modified the crate and return type
     Ok(String::from_utf8(
-        Command::cargo_bin("dfvstritus")
+        Command::cargo_bin("hex")
             .unwrap()
             .pipe_stdin(file_path)
             .map_err(|err| err.to_string())?
