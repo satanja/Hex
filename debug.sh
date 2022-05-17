@@ -1,1 +1,1 @@
-cargo run --bin debugtritus
+cargo run --release --bin dehex

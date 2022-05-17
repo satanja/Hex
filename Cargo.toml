@@ -1,9 +1,9 @@
 [package]
-name = "dfvstritus"
+name = "hex"
 authors = ["s.a.tanja@student.tue.nl"]
 version = "0.1.0"
 edition = "2021"
-default-run = "dfvstritus"
+default-run = "hex"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
@@ -29,13 +29,14 @@ rayon = "1.5"
 lto = "fat"
 panic = "abort"
 incremental = true
+debug = true
 
 [[bin]]
-name = "debugtritus"
+name = "dehex"
 path = "src/bin-debug.rs"
 
 [[bin]]
-name = "dfvstritus"
+name = "hex"
 path = "src/main.rs"
 
 [[bench]]

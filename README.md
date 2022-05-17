@@ -1,5 +1,5 @@
-# DFVStritus
-The DFVStritus framework is a solver for the Directed Feedback Vertex Set Problem. The problem states that given a graph G = (V, E), we
+# Hex
+Hex is a solver for the Directed Feedback Vertex Set Problem. The problem states that given a graph G = (V, E), we
 compute a minimum-sized subset X of V such that the induced graph of G[V \ X] is acyclic. This solver was submitted to the PACE Challange 2022 and is written for my master thesis. 
 
 ## Installation
@@ -18,7 +18,7 @@ For development purposes, cargo also installs `cpu_time`, `rayon` and `assert_cm
 
 ## Building
 ### Linux
-The solver can be built using `cargo build --release`. The resulting binary is located in `/target/release/dfvstritus`. In order to run the binary from any directory, note that the `vc_solver` from WeGotYouCovered must be placed inside the directory `extern/WeGotYouCovered/vc_solver`, i.e., relative from you *current working directory*. You may need to set execution rights on `vc_solver` manually after cloning from GitHub. 
+The solver can be built using `cargo build --release`. The resulting binary is located in `/target/release/hex`. In order to run the binary from any directory, note that the `vc_solver` from WeGotYouCovered must be placed inside the directory `extern/WeGotYouCovered/vc_solver`, i.e., relative from you *current working directory*. You may need to set execution rights on `vc_solver` manually after cloning from GitHub. 
 
 # Optil
 Unfortunately, the optil.io server is running on Ubuntu 16.04 (last checked in April 2022), which comes with the caveat that building the project on your current favorite linux distro compiles and links the binaries against newer versions of `glibc` and `coinor-libcbc-dev`. To remedy this, we use a docker container that is running Ubuntu 16.04, we build the binary in that environment, and extract it. This ensures the binary is linked to the correct versions of `glibc` and `coinor-libcbc-dev` without the need of creating a VM.

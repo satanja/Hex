@@ -111,20 +111,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dfvstritus"
-version = "0.1.0"
-dependencies = [
- "assert_cmd",
- "coin_cbc",
- "cpu-time",
- "duct",
- "rand",
- "rayon",
- "rustc-hash",
- "shh",
-]
-
-[[package]]
 name = "difflib"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -172,6 +158,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "hex"
+version = "0.1.0"
+dependencies = [
+ "assert_cmd",
+ "coin_cbc",
+ "cpu-time",
+ "duct",
+ "rand",
+ "rayon",
+ "rustc-hash",
+ "shh",
 ]
 
 [[package]]
