@@ -1,9 +1,8 @@
 use super::recover_solution;
 use crate::{
     exact::vc_solver,
-    graph::{EdgeCycleCover, Graph, Reducable, ThreeClique, Undirected},
+    graph::{EdgeCycleCover, Graph, Reducable, ThreeCliques, Undirected},
     heur::ilp_upper_bound,
-    lower::lower_bound,
     util::Constraint,
 };
 use coin_cbc::Sense;
@@ -21,18 +20,8 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         vc_solver::solve(graph, &mut dfvs);
         return Some(dfvs);
     }
-    
-    // First, compute the set of all three cliques in the graph
-    // for (a, b, c) in graph.three_cliques() {
-    //     constraints.push(Constraint::new(vec![a, b, c], 2));
-    // }
 
-    // for i in 0..constraints.len() {
-    //     let constraint = &constraints[i];
-    //     for variable in constraint.variables() {
-    //         constraint_map[*variable as usize].push(i);
-    //     }
-    // }
+    let mut undirected_graph = Graph::new(vertices);
 
     // Start form the undirected part of the graph
     // Include the undirected edges as constraints, and remove the undirected
@@ -47,6 +36,9 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         let mut sources = Vec::with_capacity(stars.len());
         for (source, neighbors) in &stars {
             for neighbor in neighbors {
+                undirected_graph.add_arc(*source, *neighbor);
+                undirected_graph.add_arc(*neighbor, *source);
+
                 if *source < *neighbor {
                     constraint_map[*source as usize].push(constraints.len());
                     constraint_map[*neighbor as usize].push(constraints.len());
@@ -72,7 +64,9 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         for constraint_index in &constraint_map[*vertex as usize] {
             forced_constraints.insert(*constraint_index);
         }
+        undirected_graph.remove_vertex(*vertex);
     }
+
     let mut preprocess_constraints = Vec::new();
     for i in 0..constraints.len() {
         if forced_constraints.contains(&i) {
@@ -83,7 +77,7 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
     drop(constraints);
 
     let mut dfvs = Vec::new();
-    if !preprocess_constraints.is_empty() {
+    if !preprocess_constraints.is_empty() && false {
         preprocess_constraints.sort_by(|a, b| a.variables()[0].cmp(&b.variables()[0]));
         let mut input = String::new();
         writeln!(
@@ -139,16 +133,22 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         }
         preprocess_constraints.push(Constraint::new(cycle, 1));
     }
-    // let hitting_set: Vec<_> = preprocess_constraints
-    //     .iter()
-    //     .filter(|c| c.lower_bound() == 1)
-    //     .cloned()
-    //     .collect();
+
+    let cliques = undirected_graph.undirected_three_cliques();
+    for (a, b, c) in cliques {
+        let cstr = model.add_row();
+        model.set_row_lower(cstr, 2.);
+        model.set_weight(cstr, vars[a as usize], 1.);
+        model.set_weight(cstr, vars[b as usize], 1.);
+        model.set_weight(cstr, vars[c as usize], 1.);
+    }
+
     let upper = ilp_upper_bound(&preprocess_constraints, graph.total_vertices());
     model.remove_initial_solution();
     for variable in upper {
         model.set_col_initial_solution(vars[variable as usize], 1.);
     }
+
     let solution = model.solve();
     recover_solution(&solution, &vars, &mut dfvs, vertices);
     if graph.is_acyclic_with_fvs(&dfvs) {

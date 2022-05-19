@@ -1748,11 +1748,12 @@ impl TwinCliques for Graph {
     }
 }
 
-pub trait ThreeClique {
+pub trait ThreeCliques {
     fn three_cliques(&self) -> Vec<(u32, u32, u32)>;
+    fn undirected_three_cliques(&self) -> Vec<(u32, u32, u32)>;
 }
 
-impl ThreeClique for Graph {
+impl ThreeCliques for Graph {
     fn three_cliques(&self) -> Vec<(u32, u32, u32)> {
         let mut cliques = Vec::new();
         let stars = self.stars();
@@ -1776,7 +1777,30 @@ impl ThreeClique for Graph {
         }
         cliques
     }
+
+    fn undirected_three_cliques(&self) -> Vec<(u32, u32, u32)> {
+        let mut cliques = Vec::new();
+        for center in 0..self.total_vertices() {
+            for i in 0..self.adj[center].len() {
+                let a = self.adj[center][i];
+                if a < center as u32 {
+                    continue;
+                }
+                for j in i + 1..self.adj[center].len() {
+                    let b = self.adj[center][j];
+                    if b > a
+                        && self.adj[a as usize].contains(&b)
+                        && self.adj[b as usize].contains(&a)
+                    {
+                        cliques.push((center as u32, a, b));
+                    }
+                }
+            }
+        }
+        cliques
+    }
 }
+
 #[cfg(test)]
 mod tests {
     use crate::graph::Statistics;
