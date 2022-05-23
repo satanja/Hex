@@ -7,7 +7,6 @@ use crate::{
 };
 use coin_cbc::Sense;
 use rustc_hash::FxHashSet;
-use std::fmt::Write;
 
 pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
     let vertices = graph.total_vertices();
@@ -77,23 +76,8 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
     drop(constraints);
 
     let mut dfvs = Vec::new();
-    if !preprocess_constraints.is_empty() && false {
-        preprocess_constraints.sort_by(|a, b| a.variables()[0].cmp(&b.variables()[0]));
-        let mut input = String::new();
-        writeln!(
-            input,
-            "p td {} {}",
-            graph.total_vertices(),
-            preprocess_constraints.len()
-        )
-        .unwrap();
-        for cstr in &preprocess_constraints {
-            let first = cstr.variables()[0];
-            let second = cstr.variables()[1];
-            writeln!(input, "{} {}", first + 1, second + 1).unwrap();
-        }
-        dfvs = vc_solver::solve_from_string(input);
-
+    if !preprocess_constraints.is_empty() {
+        vc_solver::solve(&undirected_graph, &mut dfvs);
         if graph.is_acyclic_with_fvs(&dfvs) {
             dfvs.append(&mut forced);
             return Some(dfvs);

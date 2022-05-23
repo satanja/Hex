@@ -14,11 +14,6 @@ struct SimulatedAnnealingILP {
     satisfied: RangeSet,
 }
 
-enum Delta {
-    Infeasible,
-    Cost(i32, Option<Vec<u32>>),
-}
-
 impl SimulatedAnnealingILP {
     fn new(constraints: &Vec<Constraint>, variables: usize) -> SimulatedAnnealingILP {
         let mut adj = vec![Vec::new(); variables];
@@ -107,7 +102,7 @@ impl SimulatedAnnealingILP {
 
                 let mut hit = Vec::new();
                 for j in &self.adj[*variable as usize] {
-                    if counts.contains_key(&j) {
+                    if counts.contains_key(j) {
                         hit.push(*j);
                     }
                 }
