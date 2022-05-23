@@ -1801,6 +1801,50 @@ impl ThreeCliques for Graph {
     }
 }
 
+pub trait FourCliques {
+    fn four_cliques(&self) -> Vec<[u32; 4]>;
+}
+
+impl FourCliques for Graph {
+    fn four_cliques(&self) -> Vec<[u32; 4]> {
+        let mut cliques = Vec::new();
+        let mut edge_set = FxHashSet::default();
+        for source in 0..self.total_vertices() {
+            for target in &self.adj[source] {
+                edge_set.insert((source as u32, *target));
+            }
+        }
+
+        for mid in 0..self.total_vertices() {
+            if self.adj[mid].len() < 3 {
+                continue;
+            }
+            for i in 0..self.adj[mid].len() {
+                let a = &self.adj[mid][i];
+                if *a < mid as u32{
+                    continue;
+                }
+                for j in i + 1..self.adj[mid].len() {
+                    let b = &self.adj[mid][j];
+                    if *b < mid as u32 {
+                        continue;
+                    }
+                    for k in j + 1..self.adj[mid].len() {
+                        let c = &self.adj[mid][k];
+                        if *c < mid as u32 {
+                            continue;
+                        }
+                        if edge_set.contains(&(*a, *b)) && edge_set.contains(&(*a, *c)) && edge_set.contains(&(*b, *c)) {
+                            cliques.push([mid as u32, *a, *b, *c]);
+                        }
+                    }
+                }
+            }
+        }
+        cliques
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::graph::Statistics;
