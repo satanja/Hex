@@ -1,10 +1,12 @@
 use crate::graph::{Graph, HeuristicReduce};
 
 mod ilp_sa;
+mod rsa;
 mod sa;
 pub use ilp_sa::ilp_upper_bound;
 use rustc_hash::FxHashSet;
 pub use sa::SimulatedAnnealing;
+pub use rsa::RSA;
 pub trait Heuristic {
     fn upper_bound(graph: &Graph) -> Vec<u32>;
 }
