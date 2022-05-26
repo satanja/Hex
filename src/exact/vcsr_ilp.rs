@@ -1,14 +1,14 @@
 use super::recover_solution;
 use crate::{
     exact::vc_solver,
-    graph::{EdgeCycleCover, Graph, Reducable, ThreeCliques, Undirected},
+    graph::{EdgeCycleCover, Graph, Reducable, ThreeCliques, Undirected, WeakThreeCliques},
     heur::ilp_upper_bound,
     util::Constraint,
 };
 use coin_cbc::Sense;
 use rustc_hash::FxHashSet;
 
-pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
+pub fn solve(graph: &mut Graph) -> Vec<u32> {
     let vertices = graph.total_vertices();
     let mut constraints = Vec::new();
     let mut constraint_map = vec![Vec::new(); vertices];
@@ -16,8 +16,9 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
 
     if graph.is_undirected() {
         let mut dfvs = Vec::new();
-        vc_solver::solve(graph, &mut dfvs);
-        return Some(dfvs);
+        if vc_solver::solve(graph, &mut dfvs) {
+            return dfvs;
+        }
     }
 
     let mut undirected_graph = Graph::new(vertices);
@@ -77,10 +78,11 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
 
     let mut dfvs = Vec::new();
     if !preprocess_constraints.is_empty() {
-        vc_solver::solve(&undirected_graph, &mut dfvs);
-        if graph.is_acyclic_with_fvs(&dfvs) {
-            dfvs.append(&mut forced);
-            return Some(dfvs);
+        if vc_solver::solve(&undirected_graph, &mut dfvs) {
+            if graph.is_acyclic_with_fvs(&dfvs) {
+                dfvs.append(&mut forced);
+                return dfvs;
+            }
         }
     }
 
@@ -118,6 +120,14 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         preprocess_constraints.push(Constraint::new(cycle, 1));
     }
 
+    for set in graph.weak_three_cliques() {
+        let cstr = model.add_row();
+        model.set_row_lower(cstr, 2.);
+        for vertex in set {
+            model.set_weight(cstr, vars[vertex as usize], 1.);
+        }
+    }
+
     let cliques = undirected_graph.undirected_three_cliques();
     for (a, b, c) in cliques {
         let cstr = model.add_row();
@@ -137,7 +147,7 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
     recover_solution(&solution, &vars, &mut dfvs, vertices);
     if graph.is_acyclic_with_fvs(&dfvs) {
         dfvs.append(&mut forced);
-        return Some(dfvs);
+        return dfvs;
     }
 
     loop {
@@ -163,5 +173,5 @@ pub fn solve(graph: &mut Graph) -> Option<Vec<u32>> {
         recover_solution(&solution, &vars, &mut dfvs, graph.total_vertices());
     }
     dfvs.append(&mut forced);
-    Some(dfvs)
+    dfvs
 }

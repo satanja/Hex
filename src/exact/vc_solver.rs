@@ -1,10 +1,8 @@
-use duct::cmd;
-use duct::Expression;
+use assert_cmd::Command;
 use std::process::Output;
 use std::time::Duration;
 
-use crate::graph::Graph;
-use crate::graph::Undirected;
+use crate::graph::{Graph, Undirected};
 
 fn extract_vc_solution_from_output(output: Output, solution: &mut Vec<u32>) {
     if output.status.success() {
@@ -33,80 +31,43 @@ fn extract_vc_solution_from_bytes(bytes: &[u8], solution: &mut Vec<u32>) {
 }
 
 fn run_solver(graph: &Graph, solution: &mut Vec<u32>, time_limit: Option<Duration>) -> bool {
-    let program = create_program_launch();
-    let command = program.stdin_bytes(graph.as_string()).stdout_capture();
-    let child = command.start().unwrap();
+    let mut program = create_program_launch();
+    let command = if let Some(duration) = time_limit {
+        program.write_stdin(graph.as_string()).timeout(duration)
+    } else {
+        program.write_stdin(graph.as_string())
+    };
 
-    if let Some(duration) = time_limit {
-        if let Ok(Some(output)) = child.try_wait() {
-            let data = &output.stdout;
-            extract_vc_solution_from_bytes(data, solution);
-            return true;
-        }
-
-        std::thread::sleep(duration);
-
-        match child.try_wait() {
-            Ok(Some(output)) => {
-                let data = &output.stdout;
-                extract_vc_solution_from_bytes(data, solution);
-                return true;
-            }
-            _ => {
-                child.kill().unwrap();
-                return false;
-            }
-        }
+    let stdout;
+    match command.ok() {
+        Ok(output) => stdout = output.stdout,
+        Err(_) => return false,
     }
-    let output = child.into_output().unwrap();
-    let data = &output.stdout;
-    extract_vc_solution_from_bytes(data, solution);
+    extract_vc_solution_from_bytes(&stdout, solution);
     true
 }
 
 pub fn solve(graph: &Graph, solution: &mut Vec<u32>) -> bool {
-    #[cfg(feature = "time-limit")]
-    {
-        if run_solver(graph, solution, Some(Duration::from_millis(500))) {
-            return true;
-        }
-
-        if run_solver(graph, solution, Some(Duration::from_secs(5))) {
-            return true;
-        }
-
-        if run_solver(graph, solution, Some(Duration::from_secs(10))) {
-            return true;
-        }
-
-        if run_solver(graph, solution, Some(Duration::from_secs(100))) {
-            return true;
-        }
-
+    if cfg!(feature = "time-limit") {
         if run_solver(graph, solution, Some(Duration::from_secs(8 * 60))) {
             return true;
         }
-        false
-    }
-
-    run_solver(graph, solution, None)
-}
-
-pub fn solve_from_string(input: String) -> Vec<u32> {
-    let mut solution = Vec::new();
-    let program = create_program_launch();
-    let command = program.stdin_bytes(input).stdout_capture();
-
-    let child = command.start().unwrap();
-    let output = child.into_output().unwrap();
-    extract_vc_solution_from_bytes(&output.stdout, &mut solution);
-    solution
-}
-
-fn create_program_launch() -> Expression {
-    if cfg!(feature = "root-vc-solver") {
-        cmd!("./vc_solver")
+        return false;
+    } else if cfg!(feature = "bench") {
+        // rayon cannot clean up vc_solver on its own, so we must kill it ourselves
+        // we clean it up after a little over 28 minutes have passed, all proceeding 
+        // steps are always running within 2 minutes. 
+        // this is very hacky, but it works...
+        return run_solver(graph, solution, Some(Duration::from_secs(1700)));
     } else {
-        cmd!("./extern/WeGotYouCovered/vc_solver")
+        return run_solver(graph, solution, None);
+    }
+}
+
+fn create_program_launch() -> Command {
+    if cfg!(feature = "root-vc-solver") {
+        Command::new("./vc_solver")
+    } else {
+        Command::new("./extern/WeGotYouCovered/vc_solver")
     }
 }

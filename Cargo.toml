@@ -12,8 +12,10 @@ optil = ["old-cbc", "root-vc-solver"]
 old-cbc = []
 root-vc-solver = []
 time-limit = []
+bench = []
 
 [dependencies]
+assert_cmd = "1.0"
 duct = "0.13.5"
 coin_cbc = "0.1.6"
 rand = "0.8.5"
@@ -22,7 +24,6 @@ shh = "1.0.1"
 
 [dev-dependencies]
 cpu-time = "1.0"
-assert_cmd = "1.0"
 rayon = "1.5"
 
 [profile.release]
@@ -37,6 +38,10 @@ path = "src/bin-debug.rs"
 [[bin]]
 name = "hex"
 path = "src/main.rs"
+
+[[bin]]
+name = "heurx"
+path = "src/bin-heur.rs"
 
 [[bench]]
 name = "benchmark"

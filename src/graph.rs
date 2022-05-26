@@ -1805,6 +1805,83 @@ pub trait FourCliques {
     fn four_cliques(&self) -> Vec<[u32; 4]>;
 }
 
+pub trait ThreeCycles {
+    fn three_cycles(&self) -> Vec<[u32; 3]>;
+}
+
+impl ThreeCycles for Graph {
+    fn three_cycles(&self) -> Vec<[u32; 3]> {
+        let mut cycles = Vec::new();
+        let mut found = FxHashSet::default();
+        for a in 0..self.total_vertices() {
+            let reverse = &self.rev_adj[a];
+            for b in &self.adj[a] {
+                let intersection = intersection(&self.adj[*b as usize], reverse);
+                for c in intersection {
+                    let mut sorted = [a as u32, *b, c];
+                    sorted.sort_unstable();
+                    if !found.contains(&sorted) {
+                        cycles.push([a as u32, *b, c]);
+                        found.insert(sorted);
+                    }
+                }
+            }
+        }
+        cycles
+    }
+}
+
+pub trait WeakThreeCliques {
+    fn weak_three_cliques(&self) -> Vec<Vec<u32>>;
+}
+
+impl WeakThreeCliques for Graph {
+    fn weak_three_cliques(&self) -> Vec<Vec<u32>> {
+        let three_cycles = self.three_cycles();
+        let mut weak_cliques = Vec::new();
+        'main_loop: for cycle in three_cycles {
+            let mut traversed = FxHashSet::default();
+            for i in 0..cycle.len() {
+                let a = cycle[i];
+                let b = cycle[(i + 1) % cycle.len()];
+                let c = cycle[(i + 2) % cycle.len()];
+                let mut discovered = vec![None; self.total_vertices()];
+                let mut queue = VecDeque::new();
+                queue.push_back(b);
+
+                let mut found_cycle = false;
+                while let Some(vertex) = queue.pop_front() {
+                    if vertex == a {
+                        found_cycle = true;
+                        // recover cycle
+                        let mut current_vertex = vertex;
+                        while current_vertex != b {
+                            traversed.insert(current_vertex);
+                            current_vertex = discovered[current_vertex as usize].unwrap();
+                        }
+                        traversed.insert(b);
+                    }
+                    for next in &self.adj[vertex as usize] {
+                        if *next == c || *next == b || discovered[*next as usize].is_some() {
+                            continue;
+                        }
+                        discovered[*next as usize] = Some(vertex);
+                        queue.push_back(*next);
+                    }
+                }
+
+                if !found_cycle {
+                    // continue with the next cycle
+                    continue 'main_loop;
+                }
+            }
+            // only reachable if we found three cycles
+            weak_cliques.push(traversed.into_iter().collect());
+        }
+        weak_cliques
+    }
+}
+
 impl FourCliques for Graph {
     fn four_cliques(&self) -> Vec<[u32; 4]> {
         let mut cliques = Vec::new();
@@ -1821,7 +1898,7 @@ impl FourCliques for Graph {
             }
             for i in 0..self.adj[mid].len() {
                 let a = &self.adj[mid][i];
-                if *a < mid as u32{
+                if *a < mid as u32 {
                     continue;
                 }
                 for j in i + 1..self.adj[mid].len() {
@@ -1834,7 +1911,10 @@ impl FourCliques for Graph {
                         if *c < mid as u32 {
                             continue;
                         }
-                        if edge_set.contains(&(*a, *b)) && edge_set.contains(&(*a, *c)) && edge_set.contains(&(*b, *c)) {
+                        if edge_set.contains(&(*a, *b))
+                            && edge_set.contains(&(*a, *c))
+                            && edge_set.contains(&(*b, *c))
+                        {
                             cliques.push([mid as u32, *a, *b, *c]);
                         }
                     }
@@ -1853,6 +1933,7 @@ mod tests {
     use super::EdgeIter;
     use super::Graph;
     use super::Reducable;
+    use super::WeakThreeCliques;
 
     fn pace_example_graph() -> Graph {
         let mut graph = Graph::new(4);
@@ -2123,5 +2204,17 @@ mod tests {
         graph.add_arc(2, 0);
         let cycle_cover = graph.edge_cycle_cover();
         assert_eq!(cycle_cover, vec![vec![0, 1, 2]]);
+    }
+
+    #[test]
+    fn weak_three_clique_test_001() {
+        let mut graph = Graph::new(6);
+        for i in 0..3 {
+            graph.add_arc(i, (i + 1) % 3);
+            graph.add_arc((i + 1) % 3, i + 3);
+            graph.add_arc(i + 3, i);
+        }
+        let weak_three_cliques = graph.weak_three_cliques();
+        assert_eq!(weak_three_cliques.len(), 1);
     }
 }
