@@ -20,7 +20,6 @@ RUN wget https://raw.githubusercontent.com/coin-or/coinbrew/master/coinbrew
 RUN chmod +x ./coinbrew
 RUN ./coinbrew build Cbc@2.10.7
 RUN export LD_LIBRARY_PATH=/~/coin/dist/lib
-RUN ln -sr dist/lib/libCbcSolver.so /usr/lib/libCbcSolver.so.so
 RUN ln -sr dist/lib/libCbcSolver.so /usr/lib/libCbcSolver.so
 
 WORKDIR /~/hex
