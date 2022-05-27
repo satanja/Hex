@@ -61,10 +61,19 @@ fn main() {
 }
 
 fn solve_one(file_path: &Path, time_limit: Duration) -> Result<usize, String> {
-    // MOD: modified the crate and return type
+    // Rayon has difficulties cleaning up child processes, so we need a small hack
+    // We assume we equire about 100s to reach vc_solver in the execution path
+    let min = if time_limit.as_secs() < 100 {
+        0
+    } else {
+        time_limit.as_secs() - 100
+    };
+    let seconds = std::cmp::min(min, 300);
+    let arg = format!("-t={}", seconds);
     Ok(String::from_utf8(
         Command::cargo_bin("hex")
             .unwrap()
+            .arg(arg)
             .pipe_stdin(file_path)
             .map_err(|err| err.to_string())?
             .timeout(time_limit)
