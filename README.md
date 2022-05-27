@@ -20,8 +20,10 @@ For development purposes, cargo also installs `cpu_time`, `rayon` and `assert_cm
 ### Linux
 The solver can be built using `cargo build --release`. The resulting binary is located in `/target/release/hex`. In order to run the binary from any directory, note that the `vc_solver` from WeGotYouCovered must be placed inside the directory `extern/WeGotYouCovered/vc_solver`, i.e., relative from you *current working directory*. You may need to set execution rights on `vc_solver` manually after cloning from GitHub. 
 
+Alternatively, the binary can be compiled with the feature `root-vc-solver`, i.e., compiling with `cargo build --release --features root-vc-solver`, `hex` will search for `vc_solver` in the root of the current working directory. 
+
 # Optil
-Unfortunately, the optil.io server is running on Ubuntu 16.04 (last checked in April 2022), which comes with the caveat that building the project on your current favorite linux distro compiles and links the binaries against newer versions of `glibc` and `coinor-libcbc-dev`. To remedy this, we use a docker container that is running Ubuntu 16.04, we build the binary in that environment, and extract it. This ensures the binary is linked to the correct versions of `glibc` and `coinor-libcbc-dev` without the need of creating a VM.
+Unfortunately, the optil.io server is running on Ubuntu 16.04 (last checked in April 2022), which comes with the caveat that building the project on your current favorite linux distro compiles and links the binaries against newer versions of `glibc`. To remedy this, we use a docker container that is running Ubuntu 16.04, we build the binary in that environment, and extract it. This guarantees we obtain a working binary for optil, since it is compiled and linked in the same environment.
 
 ### Requirements
 * [Podman](https://podman.io/getting-started/installation)
