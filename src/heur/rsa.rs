@@ -40,7 +40,6 @@ impl Heuristic for RSA {
                 }
                 sources.push(*source);
             }
-            // break;
             graph.mark_forbidden(&sources);
             graph.remove_undirected_edges(stars);
 
@@ -71,24 +70,11 @@ impl Heuristic for RSA {
         }
 
         let mut upper_bound = ilp_upper_bound(&hitting_set, vertices);
-        if graph.is_acyclic_with_fvs(&upper_bound) {
-            upper_bound.append(&mut forced);
-            upper_bound.append(&mut initial);
-            return upper_bound;
-        }
-
-        loop {
-            let mut changed = false;
-            while let Some(cycle) = graph.find_cycle_with_fvs(&upper_bound) {
-                changed = true;
-                upper_bound.push(cycle[0]);
+        while !graph.is_acyclic_with_fvs(&upper_bound) {
+            let cycles = graph.disjoint_edge_cycle_cover(&upper_bound);
+            for cycle in cycles {
                 hitting_set.push(Constraint::new(cycle, 1));
             }
-
-            if !changed {
-                break;
-            }
-
             upper_bound = ilp_upper_bound(&hitting_set, vertices);
         }
         upper_bound.append(&mut forced);

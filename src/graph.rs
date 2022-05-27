@@ -1613,6 +1613,7 @@ impl Statistics for Graph {
 pub trait EdgeCycleCover {
     /// Returns a distinct set of cycles that covers as many edges as possible.
     fn edge_cycle_cover(&self) -> Vec<Vec<u32>>;
+    fn disjoint_edge_cycle_cover(&self, forbidden: &[u32]) -> Vec<Vec<u32>>;
 }
 
 impl EdgeCycleCover for Graph {
@@ -1656,9 +1657,62 @@ impl EdgeCycleCover for Graph {
                 }
             }
         }
-        // println!("found {} shortcuts", shortcuts);
         cycles.into_iter().collect()
     }
+
+    fn disjoint_edge_cycle_cover(&self, forbidden: &[u32]) -> Vec<Vec<u32>> {
+        let mut cycles = FxHashSet::default();
+        let forbidden_set: FxHashSet<_> = forbidden.iter().copied().collect();
+        for i in 0..self.total_vertices() {
+            if self.deleted_vertices[i] || forbidden_set.contains(&(i as u32)) {
+                continue;
+            }
+
+            for source in &self.adj[i] {
+                if forbidden_set.contains(source) {
+                    continue;
+                }
+
+                let mut queue = VecDeque::new();
+                let mut discovered = vec![None; self.total_vertices()];
+                queue.push_back(*source);
+
+                let target = i as u32;
+                'main_loop: while let Some(vertex) = queue.pop_front() {
+                    for next in &self.adj[vertex as usize] {
+                        if forbidden_set.contains(next) {
+                            continue;
+                        }
+
+                        if *next == target {
+                            let mut cycle = vec![target];
+                            let mut current_vertex = vertex;
+                            while current_vertex != *source {
+                                cycle.push(current_vertex);
+                                current_vertex = discovered[current_vertex as usize].unwrap();
+                            }
+                            cycle.push(*source);
+                            cycle.reverse();
+
+                            if let Some(shortcut) = self.find_shortuct(&cycle) {
+                                cycle = shortcut;
+                            }
+
+                            cycle.sort_unstable();
+                            cycles.insert(cycle);
+                            break 'main_loop;
+                        }
+                        if discovered[*next as usize] == None {
+                            discovered[*next as usize] = Some(vertex);
+                            queue.push_back(*next);
+                        }
+                    }
+                }
+            }
+        }
+        cycles.into_iter().collect()
+    }
+    
 }
 
 trait ShortCut {
