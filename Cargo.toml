@@ -16,7 +16,7 @@ bench = []
 
 [dependencies]
 assert_cmd = "1.0"
-duct = "0.13.5"
+clap = { version = "3.1.18", features = ["derive"] }
 coin_cbc = "0.1.6"
 rand = "0.8.5"
 rustc-hash = "1.1.0"

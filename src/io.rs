@@ -1,4 +1,5 @@
 use crate::graph::Graph;
+use clap::Parser;
 use io::Result;
 use std::{
     fs::File,
@@ -99,4 +100,22 @@ pub fn write(solution: Vec<u32>) {
     for vertex in solution {
         println!("{}", vertex + 1);
     }
+}
+
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+pub struct Config {
+    /// WeGotYouCovered's vertex cover solver time limit (s)
+    #[clap(short, long, default_value_t = 300)]
+    time_limit_vc: u64,
+}
+
+impl Config {
+    pub fn time_limit_vc(&self) -> u64 {
+        self.time_limit_vc
+    }
+}
+
+pub fn config() -> Config {
+    Config::parse()
 }
