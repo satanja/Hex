@@ -23,14 +23,9 @@ pub fn solve(mut graph: Graph, config: &Config) -> Vec<u32> {
     solution
 }
 
-fn init_model() -> Model {
+pub fn init_model() -> Model {
     let mut model = Model::default();
     model.set_parameter("log", "0");
-
-    // Disable the bugged preprocessor for cbc 2.8.12
-    // Optil servers use 2.8.12...
-    #[cfg(feature = "old-cbc")]
-    model.set_parameter("preprocess", "off");
     model
 }
 
