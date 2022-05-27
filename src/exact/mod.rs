@@ -1,4 +1,7 @@
-use crate::graph::{Graph, HeuristicReduce};
+use crate::{
+    graph::{Graph, HeuristicReduce},
+    io::Config,
+};
 use coin_cbc::{Col, Model, Solution};
 
 mod backtracking;
@@ -10,12 +13,12 @@ mod vc_ilp;
 mod vc_solver;
 mod vcsr_ilp;
 
-pub fn solve(mut graph: Graph) -> Vec<u32> {
+pub fn solve(mut graph: Graph, config: &Config) -> Vec<u32> {
     let mut solution = graph.reduce();
     if graph.vertices() == 0 {
         return solution;
     }
-    let mut remaining = vcsr_ilp::solve(&mut graph);
+    let mut remaining = vcsr_ilp::solve(&mut graph, config);
     solution.append(&mut remaining);
     solution
 }

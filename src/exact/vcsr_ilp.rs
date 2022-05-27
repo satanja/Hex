@@ -3,12 +3,13 @@ use crate::{
     exact::vc_solver,
     graph::{EdgeCycleCover, Graph, Reducable, ThreeCliques, Undirected, WeakThreeCliques},
     heur::ilp_upper_bound,
+    io::Config,
     util::Constraint,
 };
 use coin_cbc::Sense;
 use rustc_hash::FxHashSet;
 
-pub fn solve(graph: &mut Graph) -> Vec<u32> {
+pub fn solve(graph: &mut Graph, config: &Config) -> Vec<u32> {
     let vertices = graph.total_vertices();
     let mut constraints = Vec::new();
     let mut constraint_map = vec![Vec::new(); vertices];
@@ -16,7 +17,7 @@ pub fn solve(graph: &mut Graph) -> Vec<u32> {
 
     if graph.is_undirected() {
         let mut dfvs = Vec::new();
-        if vc_solver::solve(graph, &mut dfvs) {
+        if vc_solver::solve(graph, &mut dfvs, config) {
             return dfvs;
         }
     }
@@ -77,13 +78,12 @@ pub fn solve(graph: &mut Graph) -> Vec<u32> {
     drop(constraints);
 
     let mut dfvs = Vec::new();
-    if !preprocess_constraints.is_empty() {
-        if vc_solver::solve(&undirected_graph, &mut dfvs) {
-            if graph.is_acyclic_with_fvs(&dfvs) {
-                dfvs.append(&mut forced);
-                return dfvs;
-            }
-        }
+    if !preprocess_constraints.is_empty()
+        && vc_solver::solve(&undirected_graph, &mut dfvs, config)
+        && graph.is_acyclic_with_fvs(&dfvs)
+    {
+        dfvs.append(&mut forced);
+        return dfvs;
     }
 
     let mut model = super::init_model();

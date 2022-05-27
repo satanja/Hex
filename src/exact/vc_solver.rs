@@ -2,7 +2,10 @@ use assert_cmd::Command;
 use std::process::Output;
 use std::time::Duration;
 
-use crate::graph::{Graph, Undirected};
+use crate::{
+    graph::{Graph, Undirected},
+    io::Config,
+};
 
 fn extract_vc_solution_from_output(output: Output, solution: &mut Vec<u32>) {
     if output.status.success() {
@@ -47,21 +50,9 @@ fn run_solver(graph: &Graph, solution: &mut Vec<u32>, time_limit: Option<Duratio
     true
 }
 
-pub fn solve(graph: &Graph, solution: &mut Vec<u32>) -> bool {
-    if cfg!(feature = "time-limit") {
-        if run_solver(graph, solution, Some(Duration::from_secs(8 * 60))) {
-            return true;
-        }
-        return false;
-    } else if cfg!(feature = "bench") {
-        // rayon cannot clean up vc_solver on its own, so we must kill it ourselves
-        // we clean it up after a little over 28 minutes have passed, all proceeding 
-        // steps are always running within 2 minutes. 
-        // this is very hacky, but it works...
-        return run_solver(graph, solution, Some(Duration::from_secs(1700)));
-    } else {
-        return run_solver(graph, solution, None);
-    }
+pub fn solve(graph: &Graph, solution: &mut Vec<u32>, config: &Config) -> bool {
+    let time_limit = Some(Duration::from_secs(config.time_limit_vc()));
+    run_solver(graph, solution, time_limit)
 }
 
 fn create_program_launch() -> Command {

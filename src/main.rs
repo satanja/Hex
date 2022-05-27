@@ -10,7 +10,8 @@ mod lower;
 mod util;
 
 fn main() {
+    let config = io::config();
     let graph = io::read().unwrap();
-    let solution = exact::solve(graph);
+    let solution = exact::solve(graph, &config);
     io::write(solution);
 }

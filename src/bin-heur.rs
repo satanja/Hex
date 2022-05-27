@@ -8,7 +8,7 @@ mod heur;
 mod io;
 mod lower;
 mod util;
-use heur::{Heuristic, RSA};
+use heur::Heuristic;
 
 fn main() {
     let graph = io::read().unwrap();
