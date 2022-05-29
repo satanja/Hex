@@ -6,6 +6,8 @@ use coin_cbc::{Col, Model, Solution};
 
 mod backtracking;
 mod cycle_ilp;
+mod ilp;
+mod splitter;
 mod heur_ilp;
 mod hybrid_ilp;
 mod reduce_ilp;
@@ -18,7 +20,7 @@ pub fn solve(mut graph: Graph, config: &Config) -> Vec<u32> {
     if graph.vertices() == 0 {
         return solution;
     }
-    let mut remaining = vcsr_ilp::solve(&mut graph, config);
+    let mut remaining = ilp::solve(graph, config);
     solution.append(&mut remaining);
     solution
 }
