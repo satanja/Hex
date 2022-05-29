@@ -1,10 +1,10 @@
 use crate::graph::{Graph, HeuristicReduce};
 
-mod ilp_sa;
-mod rsa;
+mod hs_sa;
+mod hsheur;
 mod sa;
-pub use ilp_sa::ilp_upper_bound;
-pub use rsa::RSA;
+pub use hs_sa::hitting_set_upper_bound;
+pub use hsheur::HittingSetDFVS;
 use rustc_hash::FxHashSet;
 pub use sa::SimulatedAnnealing;
 pub trait Heuristic {

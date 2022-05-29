@@ -1712,7 +1712,6 @@ impl EdgeCycleCover for Graph {
         }
         cycles.into_iter().collect()
     }
-    
 }
 
 trait ShortCut {

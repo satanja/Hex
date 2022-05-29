@@ -12,6 +12,6 @@ use heur::Heuristic;
 
 fn main() {
     let graph = io::read().unwrap();
-    let solution = heur::RSA::upper_bound(&graph);
+    let solution = heur::HittingSetDFVS::upper_bound(&graph);
     io::write(solution);
 }

@@ -1,6 +1,5 @@
 use crate::{
     graph::{EdgeCycleCover, Graph, Reducable, ThreeCliques, WeakThreeCliques},
-    heur::ilp_upper_bound,
     util::Constraint,
 };
 use coin_cbc::Sense;
@@ -10,7 +9,7 @@ pub fn lower_bound(original: &Graph) -> f64 {
     let mut graph = original.clone();
     let reduction = graph.reduce(graph.total_vertices()).unwrap();
     if graph.is_empty() {
-        return reduction.len() as f64
+        return reduction.len() as f64;
     }
     let vertices = graph.total_vertices();
     let mut constraints = Vec::new();

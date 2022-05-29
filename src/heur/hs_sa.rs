@@ -4,9 +4,9 @@ use rand::{
     rngs::StdRng,
     Rng, SeedableRng,
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 
-struct SimulatedAnnealingILP {
+struct SimulatedAnnealingHS {
     constraints: Vec<Constraint>,
     adj: Vec<Vec<usize>>,
     states: Vec<bool>,
@@ -14,8 +14,8 @@ struct SimulatedAnnealingILP {
     satisfied: RangeSet,
 }
 
-impl SimulatedAnnealingILP {
-    fn new(constraints: &Vec<Constraint>, variables: usize) -> SimulatedAnnealingILP {
+impl SimulatedAnnealingHS {
+    fn new(constraints: &Vec<Constraint>, variables: usize) -> SimulatedAnnealingHS {
         let mut adj = vec![Vec::new(); variables];
         for i in 0..constraints.len() {
             let constraint = &constraints[i];
@@ -25,7 +25,7 @@ impl SimulatedAnnealingILP {
         }
         let states = vec![true; variables];
 
-        SimulatedAnnealingILP {
+        SimulatedAnnealingHS {
             constraints: constraints.clone(),
             adj,
             states,
@@ -79,15 +79,7 @@ impl SimulatedAnnealingILP {
         // Simple greedy heuristic as a first implementation
         let candidate_variables = self.get_candidate_variables(&unsatisfied, variable);
         let mut covered_variables = FxHashSet::default();
-        let mut counts: FxHashMap<_, _> = unsatisfied.into_iter().map(|c| (c, 0)).collect();
-
-        for (k, v) in &mut counts {
-            for variable in self.constraints[*k].variables() {
-                if self.states[*variable as usize] {
-                    *v += 1;
-                }
-            }
-        }
+        let mut counts: FxHashSet<_> = unsatisfied.into_iter().collect();
 
         while !counts.is_empty() {
             let mut max_variable = candidate_variables[0];
@@ -102,7 +94,7 @@ impl SimulatedAnnealingILP {
 
                 let mut hit = Vec::new();
                 for j in &self.adj[*variable as usize] {
-                    if counts.contains_key(j) {
+                    if counts.contains(j) {
                         hit.push(*j);
                     }
                 }
@@ -112,23 +104,12 @@ impl SimulatedAnnealingILP {
                     max_hit = hit;
                 }
             }
-            // Update the values
-            for constraint in &self.adj[max_variable as usize] {
-                if let Some(count) = counts.get_mut(constraint) {
-                    *count += 1;
-                }
-            }
 
             // Include the variable in the solution to fix and remove the set
             // of constraints it hits (if the constraint is then satisfied)
             covered_variables.insert(max_variable);
             for constraint in max_hit {
-                let count = counts.get_mut(&constraint).unwrap();
-                if *count >= self.constraints[constraint].lower_bound() {
-                    counts.remove(&constraint);
-                } else {
-                    *count += 1;
-                }
+                counts.remove(&constraint);
             }
         }
 
@@ -214,8 +195,8 @@ impl SimulatedAnnealingILP {
     }
 }
 
-pub fn ilp_upper_bound(constraints: &Vec<Constraint>, variables: usize) -> Vec<u32> {
-    let mut ilp = SimulatedAnnealingILP::new(constraints, variables);
+pub fn hitting_set_upper_bound(constraints: &Vec<Constraint>, variables: usize) -> Vec<u32> {
+    let mut ilp = SimulatedAnnealingHS::new(constraints, variables);
     let mut best_solution: Vec<_> = (0..variables as u32).collect();
     let iter = 1_000_000;
     let ud = Uniform::new(0., 1.);

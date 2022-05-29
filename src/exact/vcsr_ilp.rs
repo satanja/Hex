@@ -2,7 +2,7 @@ use super::recover_solution;
 use crate::{
     exact::vc_solver,
     graph::{EdgeCycleCover, Graph, Reducable, ThreeCliques, Undirected, WeakThreeCliques},
-    heur::ilp_upper_bound,
+    heur::hitting_set_upper_bound,
     io::Config,
     util::Constraint,
 };
@@ -137,7 +137,7 @@ pub fn solve(graph: &mut Graph, config: &Config) -> Vec<u32> {
         model.set_weight(cstr, vars[c as usize], 1.);
     }
 
-    let upper = ilp_upper_bound(&preprocess_constraints, graph.total_vertices());
+    let upper = hitting_set_upper_bound(&preprocess_constraints, graph.total_vertices());
     model.remove_initial_solution();
     for variable in upper {
         model.set_col_initial_solution(vars[variable as usize], 1.);
