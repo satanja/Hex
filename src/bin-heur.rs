@@ -2,6 +2,7 @@
 //! is then supplied to the algorithm, and after, the solution is written to
 //! stdout.
 
+#![allow(dead_code)]
 mod exact;
 mod graph;
 mod heur;

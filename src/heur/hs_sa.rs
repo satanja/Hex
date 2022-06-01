@@ -27,7 +27,6 @@ impl SimulatedAnnealingHS {
         let unsatisfied: Vec<_> = (0..constraints.len()).collect();
         let candidate_variables: Vec<_> = (0..variables as u32).collect();
 
-        let start = std::time::Instant::now();
         let initial_solution =
             SimulatedAnnealingHS::simple_greedy(&unsatisfied, &candidate_variables, &adj);
 
