@@ -9,7 +9,7 @@ The project relies on interfacing with the [Coin-or CBC library](https://github.
     
     ```$ apt-get install coinor-libcbc-dev```.
 
-Furthermore, this project uses the Vertex Cover solver of Hespe et al., the winners of the PACE 2019 Vertex Cover (exact) challange. Their repository is available [here](https://github.com/KarlsruheMIS/pace-2019). We use the binary with the `pace-2019` tag, which is already shipped inside `extern/WeGotYouCovered/vc_solver`.
+Furthermore, this project uses the Vertex Cover solver of Hespe et al., the winners of the PACE 2019 Vertex Cover (exact) challange. Their repository is available [here](https://github.com/KarlsruheMIS/pace-2019). We use the binary with the `pace-2019` tag, which is already shipped inside `extern/WeGotYouCovered/vc_solver`. Their source code can also be found in `extern/WeGotYouCovered`.
 
 Other main dependencies are fetched and compiled using cargo. These dependencies are `assert_cmd`, `clap` and `coin_cbc`, `rand`, `rustc_hash`, and `shh` (to force cbc to be quiet).
 
