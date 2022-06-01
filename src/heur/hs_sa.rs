@@ -23,14 +23,27 @@ impl SimulatedAnnealingHS {
                 adj[*variable as usize].push(i);
             }
         }
-        let states = vec![true; variables];
+
+        let unsatisfied: Vec<_> = (0..constraints.len()).collect();
+        let candidate_variables: Vec<_> = (0..variables as u32).collect();
+
+        let start = std::time::Instant::now();
+        let initial_solution =
+            SimulatedAnnealingHS::simple_greedy(&unsatisfied, &candidate_variables, &adj);
+
+        let mut states = vec![false; variables];
+        let mut satisfied = RangeSet::new(variables);
+        for variable in &initial_solution {
+            satisfied.insert(*variable);
+            states[*variable as usize] = true;
+        }
 
         SimulatedAnnealingHS {
             constraints: constraints.clone(),
             adj,
             states,
             rng: StdRng::seed_from_u64(0),
-            satisfied: (0..variables as u32).collect(),
+            satisfied,
         }
     }
 
@@ -83,7 +96,7 @@ impl SimulatedAnnealingHS {
 
         while !counts.is_empty() {
             let mut max_variable = candidate_variables[0];
-            let mut max_hit = Vec::new();
+            let mut max_hit = 0;
 
             // Determine the variable that hits the most unsatisfied constraints
             for variable in &candidate_variables {
@@ -92,23 +105,22 @@ impl SimulatedAnnealingHS {
                     continue;
                 }
 
-                let mut hit = Vec::new();
+                let mut hit = 0;
                 for j in &self.adj[*variable as usize] {
                     if counts.contains(j) {
-                        hit.push(*j);
+                        hit += 1;
                     }
                 }
 
-                if hit.len() > max_hit.len() {
+                if hit > max_hit {
                     max_variable = *variable;
                     max_hit = hit;
                 }
             }
-
             // Include the variable in the solution to fix and remove the set
             // of constraints it hits (if the constraint is then satisfied)
             covered_variables.insert(max_variable);
-            for constraint in max_hit {
+            for constraint in &self.adj[max_variable as usize] {
                 counts.remove(&constraint);
             }
         }
@@ -118,6 +130,66 @@ impl SimulatedAnnealingHS {
         let to_fix: Vec<_> = covered_variables.into_iter().collect();
         let delta = self.delta_to_repair(&to_fix, variable);
         (delta, Some(to_fix))
+    }
+
+    fn simple_greedy(
+        unsatisfied: &[usize],
+        candidate_variables: &[u32],
+        adj: &Vec<Vec<usize>>,
+    ) -> Vec<u32> {
+        let mut covered_variables = vec![false; candidate_variables.len()];
+        let mut unsatisfied_vec = vec![false; unsatisfied.len()];
+        let mut num_unsatisfied = unsatisfied.len();
+        let mut solution_size = 0;
+
+        let mut last_max = 0;
+        while num_unsatisfied != 0 {
+            let mut max_variable = candidate_variables[0];
+            let mut max_hit = 0;
+
+            // Determine the variable that hits the most unsatisfied constraints
+            for variable in candidate_variables {
+                // Skip variables that have already been included
+                if covered_variables[*variable as usize] {
+                    continue;
+                }
+
+                let mut hit = 0;
+                for j in &adj[*variable as usize] {
+                    if !unsatisfied_vec[*j] {
+                        hit += 1;
+                    }
+                }
+
+                if hit > max_hit {
+                    max_variable = *variable;
+                    max_hit = hit;
+                    if hit == last_max {
+                        break;
+                    }
+                }
+            }
+
+            last_max = max_hit;
+
+            // Include the variable in the solution to fix and remove the set
+            // of constraints it hits (if the constraint is then satisfied)
+            covered_variables[max_variable as usize] = true;
+            solution_size += 1;
+            for j in &adj[max_variable as usize] {
+                if !unsatisfied_vec[*j] {
+                    unsatisfied_vec[*j] = true;
+                    num_unsatisfied -= 1;
+                }
+            }
+        }
+        let mut result = Vec::with_capacity(solution_size);
+        for i in 0..covered_variables.len() {
+            if covered_variables[i] {
+                result.push(i as u32);
+            }
+        }
+        result
     }
 
     /// Determines the cost of flipping a set of variables. Variables set to
@@ -209,10 +281,11 @@ pub fn hitting_set_upper_bound(constraints: &Vec<Constraint>, variables: usize) 
         let (delta, opt_to_fix) = ilp.delta(variable);
         if delta <= 0 || f64::exp(-delta as f64 / temp) >= ud.sample(&mut ilp.rng) {
             if let Some(to_fix) = opt_to_fix {
-                ilp.apply_move(variable, &to_fix)
+                ilp.apply_move(variable, &to_fix);
             } else {
                 ilp.apply_move(variable, &[]);
             }
+
             if ilp.get_solution_len() < best_solution.len() {
                 let new_solution = ilp.get_solution();
                 best_solution = new_solution;
@@ -220,5 +293,5 @@ pub fn hitting_set_upper_bound(constraints: &Vec<Constraint>, variables: usize) 
         }
         temp *= alpha;
     }
-    ilp.get_solution()
+    best_solution
 }
