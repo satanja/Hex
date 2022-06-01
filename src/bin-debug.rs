@@ -15,7 +15,7 @@ use std::{fs, path::PathBuf, str::FromStr};
 
 fn main() {
     let config = io::config();
-    let paths = fs::read_dir("./disconnected/").unwrap();
+    let paths = fs::read_dir("./instances/").unwrap();
     let mut file_names: Vec<_> = paths
         .into_iter()
         .map(|p| p.unwrap().path().display().to_string())
@@ -25,8 +25,10 @@ fn main() {
     for path in file_names {
         let pb = PathBuf::from_str(&path).unwrap();
 
+        let start = std::time::Instant::now();
         let graph = io::read_from_path(&pb).unwrap();
         let solution = exact::solve(graph, &config);
-        println!("{:?}", solution.len());
+        println!("{:?}", start.elapsed());
+        println!("{:?}\n", solution.len());
     }
 }
