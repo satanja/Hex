@@ -3,6 +3,7 @@
 [Hex](https://en.wikipedia.org/wiki/Hex_(Discworld)) is a solver for the Directed Feedback Vertex Set Problem. The problem states that given a graph $G = (V, E)$, we
 compute a minimum-sized subset $X \subseteq V$ such that the induced graph of $G[V \setminus X]$ is acyclic. This solver was submitted to the PACE Challange 2022 and is written for my master thesis. 
 
+Solver description can be found [here](./description/hex.pdf).
 
 ## Requirements
 The project relies on interfacing with the [Coin-or CBC library](https://github.com/coin-or/COIN-OR-OptimizationSuite)
