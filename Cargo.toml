@@ -1,7 +1,7 @@
 [package]
 name = "hex"
 authors = ["s.a.tanja@student.tue.nl"]
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 default-run = "hex"
 
