@@ -1185,25 +1185,6 @@ impl Reducable for Graph {
                 continue;
             }
 
-            let mut twins = self.twin_reduction();
-            if twins.len() > upper_bound {
-                return None;
-            }
-
-            if !twins.is_empty() {
-                reduced = true;
-                upper_bound -= twins.len();
-                forced.append(&mut twins);
-            }
-
-            if let Some(vertex) = self.star_reduction(upper_bound) {
-                if upper_bound == 0 {
-                    return None;
-                }
-                reduced = true;
-                upper_bound -= 1;
-                forced.push(vertex);
-            }
         }
         Some(forced)
     }
