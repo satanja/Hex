@@ -2,7 +2,6 @@ use crate::util::{
     self,
     algorithms::{difference, intersection},
 };
-use coin_cbc::{Model, Sense};
 use core::fmt;
 use rand::prelude::SliceRandom;
 use rand::rngs::StdRng;
@@ -837,126 +836,6 @@ impl Graph {
             components.push(component);
         }
         components
-    }
-
-    fn exact_vertex_cover_reduction(&mut self) -> Option<Vec<u32>> {
-        let undir_components = self.undirected_components();
-        let mut forced = Vec::new();
-
-        for component in undir_components {
-            let mut in_vertices = 0;
-            let mut out_vertices = 0;
-            let mut in_vertex = 0;
-            let mut out_vertex = 0;
-            let _len = component.len();
-            let vertex_set: FxHashSet<_> = component.iter().copied().collect();
-            for vertex in &component {
-                for source in &self.rev_adj[*vertex as usize] {
-                    if !vertex_set.contains(source) {
-                        in_vertices += 1;
-                        in_vertex = *vertex;
-                    }
-                }
-
-                for target in &self.adj[*vertex as usize] {
-                    if !vertex_set.contains(target) {
-                        out_vertices += 1;
-                        out_vertex = *vertex;
-                    }
-                }
-            }
-            if in_vertices != 1 && out_vertices != 1 {
-                continue;
-            }
-
-            // Vertex Cover computation
-            let subgraph = self.induced_subgraph(component.clone());
-            let mut model = Model::default();
-            model.set_parameter("log", "0");
-
-            let mut vars = Vec::with_capacity(subgraph.total_vertices());
-            for _ in 0..subgraph.total_vertices() {
-                let var = model.add_binary();
-                model.set_obj_coeff(var, 1.);
-                vars.push(var);
-            }
-
-            let stars = subgraph.stars();
-            for (u, list) in stars {
-                for v in list {
-                    if u < v {
-                        let cstr = model.add_row();
-                        model.set_row_lower(cstr, 1.);
-                        model.set_weight(cstr, vars[u as usize], 1.);
-                        model.set_weight(cstr, vars[v as usize], 1.);
-                    }
-                }
-            }
-
-            model.set_obj_sense(Sense::Minimize);
-            let mut dfvs = Vec::new();
-            let solution = model.solve();
-
-            for i in 0..vars.len() {
-                if solution.col(vars[i]) >= 0.95 {
-                    dfvs.push(i as u32);
-                }
-            }
-
-            if subgraph.is_acyclic_with_fvs(&dfvs) {
-                if in_vertices == 1 {
-                    if dfvs.contains(&in_vertex) {
-                        self.remove_vertices(&dfvs);
-                        forced.append(&mut dfvs);
-                    } else {
-                        let cstr = model.add_row();
-                        model.set_row_equal(cstr, 1.);
-                        model.set_weight(cstr, vars[in_vertex as usize], 1.);
-                        let new_solution = model.solve();
-                        let mut new_dfvs = Vec::new();
-                        for i in 0..vars.len() {
-                            if new_solution.col(vars[i]) >= 0.95 {
-                                new_dfvs.push(i as u32);
-                            }
-                        }
-                        if new_dfvs.len() == dfvs.len() {
-                            self.remove_vertices(&new_dfvs);
-                            forced.append(&mut new_dfvs);
-                        } else {
-                            self.contract_component_to_vertex(&component);
-                            forced.append(&mut dfvs);
-                        }
-                    }
-                } else if dfvs.contains(&out_vertex) {
-                    self.remove_vertices(&dfvs);
-                    forced.append(&mut dfvs);
-                } else {
-                    let cstr = model.add_row();
-                    model.set_row_equal(cstr, 1.);
-                    model.set_weight(cstr, vars[out_vertex as usize], 1.);
-                    let new_solution = model.solve();
-                    let mut new_dfvs = Vec::new();
-                    for i in 0..vars.len() {
-                        if new_solution.col(vars[i]) >= 0.95 {
-                            new_dfvs.push(i as u32);
-                        }
-                    }
-                    if new_dfvs.len() == dfvs.len() {
-                        self.remove_vertices(&new_dfvs);
-                        forced.append(&mut new_dfvs);
-                    } else {
-                        self.contract_component_to_vertex(&component);
-                        forced.append(&mut dfvs);
-                    }
-                }
-            }
-        }
-
-        if forced.is_empty() {
-            None
-        } else {
-            Some(forced)
-        }
     }
 
     fn contract_component_to_vertex(&mut self, component: &[u32]) {

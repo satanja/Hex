@@ -30,6 +30,7 @@ pub fn split_reduction(mut graph: Graph) -> ILPData {
     let mut forced = Vec::new();
     let mut undirected_graph = Graph::new(vertices);
 
+    eprintln!("splitting...");
     loop {
         let stars = graph.stars();
         if stars.is_empty() {
@@ -68,7 +69,7 @@ pub fn split_reduction(mut graph: Graph) -> ILPData {
         }
         undirected_graph.remove_vertex(*vertex);
     }
-
+    
     let mut hitting_set = Vec::new();
     for i in 0..constraints.len() {
         if forced_constraints.contains(&i) {
@@ -76,17 +77,20 @@ pub fn split_reduction(mut graph: Graph) -> ILPData {
         }
         hitting_set.push(std::mem::take(&mut constraints[i]));
     }
-
+    
+    eprintln!("finding an upper bound...");
     for cycle in graph.edge_cycle_cover() {
         hitting_set.push(Constraint::new(cycle, 1));
     }
 
     let mut upper_bound = hitting_set_upper_bound(&hitting_set, vertices);
     while !graph.is_acyclic_with_fvs(&upper_bound) {
+        eprintln!("generating additional cycles...");
         let cycles = graph.disjoint_edge_cycle_cover(&upper_bound);
         for cycle in cycles {
             hitting_set.push(Constraint::new(cycle, 1));
         }
+        eprintln!("finding an upper bound...");
         upper_bound = hitting_set_upper_bound(&hitting_set, vertices);
     }
 

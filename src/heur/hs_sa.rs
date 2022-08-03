@@ -27,6 +27,7 @@ impl SimulatedAnnealingHS {
         let unsatisfied: Vec<_> = (0..constraints.len()).collect();
         let candidate_variables: Vec<_> = (0..variables as u32).collect();
 
+        eprintln!("computing initial solution...");
         let initial_solution =
             SimulatedAnnealingHS::simple_greedy(&unsatisfied, &candidate_variables, &adj);
 
@@ -274,8 +275,12 @@ pub fn hitting_set_upper_bound(constraints: &Vec<Constraint>, variables: usize) 
     let mut temp = 5.;
     let end_temp = -1. * 1. / (1e-9f64.ln());
     let alpha = (end_temp / temp).powf(1. / iter as f64);
-
-    for _ in 0..iter {
+    
+    eprintln!("improving initial solution...");
+    for i in 0..iter {
+        if i % 100 == 0 {
+            eprint!("{:.3}%\r", i as f64 / iter as f64 * 100.);
+        }
         let variable = ilp.random_move();
         let (delta, opt_to_fix) = ilp.delta(variable);
         if delta <= 0 || f64::exp(-delta as f64 / temp) >= ud.sample(&mut ilp.rng) {
