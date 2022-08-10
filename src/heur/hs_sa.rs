@@ -27,7 +27,6 @@ impl SimulatedAnnealingHS {
         let unsatisfied: Vec<_> = (0..constraints.len()).collect();
         let candidate_variables: Vec<_> = (0..variables as u32).collect();
 
-        eprintln!("computing initial solution...");
         let initial_solution =
             SimulatedAnnealingHS::simple_greedy(&unsatisfied, &candidate_variables, &adj);
 
@@ -268,19 +267,18 @@ impl SimulatedAnnealingHS {
 }
 
 pub fn hitting_set_upper_bound(constraints: &Vec<Constraint>, variables: usize) -> Vec<u32> {
+    hitting_set_upper_bound_custom(constraints, variables, 1_000_000)
+}
+
+pub fn hitting_set_upper_bound_custom(constraints: &Vec<Constraint>, variables: usize, iter: i32) -> Vec<u32> {
     let mut ilp = SimulatedAnnealingHS::new(constraints, variables);
     let mut best_solution: Vec<_> = (0..variables as u32).collect();
-    let iter = 1_000_000;
     let ud = Uniform::new(0., 1.);
     let mut temp = 5.;
     let end_temp = -1. * 1. / (1e-9f64.ln());
     let alpha = (end_temp / temp).powf(1. / iter as f64);
     
-    eprintln!("improving initial solution...");
-    for i in 0..iter {
-        if i % 100 == 0 {
-            eprint!("{:.3}%\r", i as f64 / iter as f64 * 100.);
-        }
+    for _ in 0..iter {
         let variable = ilp.random_move();
         let (delta, opt_to_fix) = ilp.delta(variable);
         if delta <= 0 || f64::exp(-delta as f64 / temp) >= ud.sample(&mut ilp.rng) {

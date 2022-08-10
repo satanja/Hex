@@ -50,7 +50,6 @@ pub fn solve(graph: Graph, config: &Config) -> Vec<u32> {
     let mut model = super::init_model();
     // model.set_obj_sense(Sense::Minimize);
     
-    eprintln!("setting up ilp...");
     let mut vars = Vec::with_capacity(vertices);
     for i in 0..vertices {
         let n = format!("v{}", i);
@@ -87,7 +86,6 @@ pub fn solve(graph: Graph, config: &Config) -> Vec<u32> {
             .unwrap();
     }
 
-    eprintln!("solving ilp (1)...");
     model.optimize().unwrap();
     recover_solution(&model, &vars, &mut dfvs);
 
@@ -111,7 +109,6 @@ pub fn solve(graph: Graph, config: &Config) -> Vec<u32> {
     // add edge cycle covers until we do
     while !graph.is_acyclic_with_fvs(&dfvs) {
         let cycles = graph.disjoint_edge_cycle_cover(&dfvs);
-        eprintln!("adding additional constraints...");
         for cycle in cycles {
             let mut expr = LinExpr::new();
             for v in &cycle {
@@ -121,7 +118,6 @@ pub fn solve(graph: Graph, config: &Config) -> Vec<u32> {
             model.add_constr("", c!(expr >= 1)).unwrap();
             constraints.push(Constraint::new(cycle, 1));
         }
-        eprintln!("solving ilp (2)...");
         // this is an upper bound on the hitting set instance, not an upper
         // for the graph itself
         let upper_bound = hitting_set_upper_bound(&constraints, vertices);

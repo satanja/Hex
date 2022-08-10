@@ -4,6 +4,7 @@ mod hs_sa;
 mod hsheur;
 mod sa;
 pub use hs_sa::hitting_set_upper_bound;
+pub use hs_sa::hitting_set_upper_bound_custom;
 pub use hsheur::HittingSetDFVS;
 use rustc_hash::FxHashSet;
 pub use sa::SimulatedAnnealing;
