@@ -4,7 +4,7 @@ use crate::{
 };
 use grb::prelude::*;
 
-// mod backtracking;
+mod bnb;
 // mod cycle_ilp;
 // mod ilp;
 mod splitter;
@@ -21,7 +21,8 @@ pub fn solve(mut graph: Graph, config: &Config) -> Vec<u32> {
     if graph.vertices() == 0 {
         return solution;
     }
-    let mut remaining = grb_ilp::solve(graph, config);
+    // let mut remaining = grb_ilp::solve(graph, config);
+    let mut remaining = bnb::solve(&mut graph);
     solution.append(&mut remaining);
     solution
 }

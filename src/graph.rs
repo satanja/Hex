@@ -7,7 +7,7 @@ use rand::prelude::SliceRandom;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::{collections::VecDeque, fmt::Write};
+use std::{collections::VecDeque, fmt::Write, ops::Add};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Graph {
@@ -1063,7 +1063,6 @@ impl Reducable for Graph {
                 forced.append(&mut self_loops);
                 continue;
             }
-
         }
         Some(forced)
     }
@@ -1835,6 +1834,88 @@ impl FourCliques for Graph {
             }
         }
         cliques
+    }
+}
+
+pub trait SplitReduce {
+    fn split_reduce(self) -> (Graph, Graph, Vec<u32>);
+}
+
+impl SplitReduce for Graph {
+    fn split_reduce(mut self) -> (Graph, Graph, Vec<u32>) {
+        let vertices = self.total_vertices();
+        let mut undirected_graph = Graph::new(vertices);
+        let mut forced = Reducable::reduce(&mut self, vertices).unwrap();
+
+        let mut id = 0;
+        let mut constraint_map = vec![Vec::new(); vertices];
+
+        loop {
+            let stars = self.stars();
+            if stars.is_empty() {
+                break;
+            }
+
+            let mut sources = Vec::with_capacity(stars.len());
+            for (source, neighbors) in &stars {
+                for neighbor in neighbors {
+                    undirected_graph.add_arc(*source, *neighbor);
+                    undirected_graph.add_arc(*neighbor, *source);
+
+                    if *source < *neighbor {
+                        constraint_map[*source as usize].push(id);
+                        constraint_map[*neighbor as usize].push(id);
+                        id += 1;
+                    }
+                }
+                sources.push(*source);
+            }
+            self.mark_forbidden(&sources);
+            self.remove_undirected_edges(stars);
+
+            let mut reduced = Reducable::reduce(&mut self, vertices).unwrap();
+            if reduced.is_empty() {
+                break;
+            }
+            forced.append(&mut reduced);
+        }
+
+        // Some generated constraints may already be satisfied, filter those.
+        let mut forced_constraints = FxHashSet::default();
+        for vertex in &forced {
+            for constraint_index in &constraint_map[*vertex as usize] {
+                forced_constraints.insert(*constraint_index);
+            }
+            undirected_graph.remove_vertex(*vertex);
+        }
+
+        (self, undirected_graph, forced)
+    }
+}
+
+
+impl Add for Graph {
+    type Output = Graph;
+
+    fn add(mut self, rhs: Self) -> Self::Output {
+        assert_eq!(self.total_vertices(), rhs.total_vertices());
+        for i in 0..rhs.total_vertices() {
+            for j in 0..rhs.adj[i].len() {
+                let from = i as u32;
+                let to = rhs.adj[i][j];
+                self.add_arc(from, to);
+            }
+        }
+        
+        for i in 0..self.forbidden.len() {
+            self.forbidden[i] = false;
+        }
+
+        for i in 0..self.deleted_vertices.len() {
+            self.deleted_vertices[i] = false;
+        }
+
+        self
     }
 }
 
