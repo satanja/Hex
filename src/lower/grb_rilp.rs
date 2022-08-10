@@ -16,13 +16,14 @@ pub fn lower_bound(graph: &Graph, undirected_graph: &Graph) -> (f64, Vec<u32>) {
         constraints.push(Constraint::new(vec![u, v], 1));
     }
 
+    let mut iter = 5;
     let mut upper_bound = if constraints.is_empty() {
         Vec::new()
     } else {
+        iter -= 1;
         hitting_set_upper_bound_custom(&constraints, vertices, 10_000)
     };
 
-    let mut iter: usize = 4;
     while !graph.is_acyclic_with_fvs(&upper_bound) && iter > 0 {
         let cycles = graph.disjoint_edge_cycle_cover(&upper_bound);
         for cycle in cycles {

@@ -5,12 +5,12 @@ use crate::{
     util::Constraint,
 };
 
-use super::{hitting_set_upper_bound, Heuristic};
+use super::{Heuristic, hitting_set_upper_bound_custom};
 
 pub struct HittingSetDFVS {}
 impl Heuristic for HittingSetDFVS {
-    fn upper_bound(original: &Graph) -> Vec<u32> {
-        let mut graph = original.clone();
+    fn upper_bound(graph: &Graph) -> Vec<u32> {
+        let mut graph = graph.clone();
         let vertices = graph.total_vertices();
         // let initial = Vec::new();
         let mut initial = graph.reduce(vertices).unwrap();
@@ -69,13 +69,13 @@ impl Heuristic for HittingSetDFVS {
             hitting_set.push(Constraint::new(cycle, 1));
         }
 
-        let mut upper_bound = hitting_set_upper_bound(&hitting_set, vertices);
+        let mut upper_bound = hitting_set_upper_bound_custom(&hitting_set, vertices, 10_000);
         while !graph.is_acyclic_with_fvs(&upper_bound) {
             let cycles = graph.disjoint_edge_cycle_cover(&upper_bound);
             for cycle in cycles {
                 hitting_set.push(Constraint::new(cycle, 1));
             }
-            upper_bound = hitting_set_upper_bound(&hitting_set, vertices);
+            upper_bound = hitting_set_upper_bound_custom(&hitting_set, vertices, 10_000);
         }
         upper_bound.append(&mut forced);
         upper_bound.append(&mut initial);
