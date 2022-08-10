@@ -24,11 +24,8 @@ fn main() {
 
     for path in file_names {
         let pb = PathBuf::from_str(&path).unwrap();
-
-        let start = std::time::Instant::now();
         let graph = io::read_from_path(&pb).unwrap();
         let solution = exact::solve(graph, &config);
-        println!("{:?}", start.elapsed());
-        println!("{:?}\n", solution.len());
+        println!("{}", solution.len());
     }
 }
